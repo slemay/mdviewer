@@ -152,10 +152,13 @@ graph TD
   - `fileURL: URL?`: Physical path of the currently open document.
   - `rawContent: String`: In-memory UTF-8 markdown string.
   - `headings: [HeadingItem]`: Normalized outline hierarchy.
-  - `stats`: `wordCount`, `charCount`, `fileSize`, `lastModified`, `readingTimeMinutes`.
-  - `appearance`: `theme`, `fontFamily`, `fontSize`.
-  - `searchState`: `searchQuery`, `searchMatchCount`, `searchMatchIndex`.
-- **Observer Architecture:** Uses decoupled closures (`onDocumentLoaded`, `onHeadingsUpdated`, `onStatsUpdated`, `onThemeUpdated`, `onFontUpdated`) to avoid heavy framework coupling.
+- **Observer Architecture:** Uses dedicated, decoupled closures to avoid callback collisions:
+  - `onDocumentLoaded`: Exclusively reserved for `ContentViewController` to trigger Markdown DOM parsing and rendering in WebKit.
+  - `onMetadataChanged`: Notifies `MainWindowController` to update window title, file URL, and proxy icon without interfering with the document rendering pipeline.
+  - `onHeadingsUpdated`: Updates `SidebarViewController` table view outline.
+  - `onStatsUpdated`: Refreshes document statistics in the sidebar footer.
+  - `onThemeUpdated` & `onFontUpdated`: Synchronizes appearance styles across WebKit and AppKit.
+  - `onScrollToHeading`: Drives smooth scrolling to heading anchor IDs.
 
 ### 4.4 Kernel File Watcher & Atomic Save Recovery
 - **Source File:** [`FileWatcher.swift`](file:///Users/slemay/Work/mdviewer/Sources/MDViewer/Services/FileWatcher.swift)
