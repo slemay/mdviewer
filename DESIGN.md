@@ -1,6 +1,6 @@
 # MDViewer: Detailed Design Document
 
-**Document Version:** 1.0.0  
+**Document Version:** 1.1.0  
 **Target Platform:** macOS 14.0+ (Sonoma, Sequoia, and future Darwin releases)  
 **Implementation Language:** Swift 6.4 (AppKit + WebKit Hybrid Architecture)  
 **Binary Output:** Standalone `MDViewer.app` & `mdviewer` CLI utility  
@@ -14,7 +14,7 @@
 3. [System Architecture Overview](#3-system-architecture-overview)
 4. [Component Deep Dive](#4-component-deep-dive)
    - 4.1 [Application Lifecycle & Menu System](#41-application-lifecycle--menu-system)
-   - 4.2 [Window Controller & Layout Hierarchy](#42-window-controller--layout-hierarchy)
+   - 4.2 [Window Controller & Layout Hierarchy (Traffic Light Clearance)](#42-window-controller--layout-hierarchy-traffic-light-clearance)
    - 4.3 [Document State & Concurrency Model](#43-document-state--concurrency-model)
    - 4.4 [Kernel File Watcher & Atomic Save Recovery](#44-kernel-file-watcher--atomic-save-recovery)
    - 4.5 [Offline WebKit Rendering Pipeline](#45-offline-webkit-rendering-pipeline)
@@ -22,6 +22,8 @@
    - 4.7 [In-Page Search Engine](#47-in-page-search-engine)
    - 4.8 [Theming & Typography System](#48-theming--typography-system)
    - 4.9 [Export & Print Subsystem](#49-export--print-subsystem)
+   - 4.10 [Universal Drag & Drop Subsystem](#410-universal-drag--drop-subsystem)
+   - 4.11 [Iconography & macOS Asset Bundling](#411-iconography--macos-asset-bundling)
 5. [Data Flow & Sequence Diagrams](#5-data-flow--sequence-diagrams)
 6. [Security & Isolation Model](#6-security--isolation-model)
 7. [Performance & Resource Characteristics](#7-performance--resource-characteristics)
@@ -49,7 +51,8 @@ However, existing preview solutions on macOS suffer from significant trade-offs:
 2. **100% Offline Independence:** Zero external network calls. All parsers (Marked), syntax engines (Highlight.js), mathematics renderers (KaTeX), diagrams (Mermaid), and font glyphs are bundled locally.
 3. **Flicker-Free Live Synchronization:** Automatic detection of file saves, handling complex atomic save mechanics (e.g. `write-to-tmp-then-rename`), with smooth scroll-position preservation.
 4. **macOS Human Interface Guidelines (HIG) Compliance:** Native unified toolbar, translucent sidebar with `NSVisualEffectView`, standard keyboard navigation, dark/light mode vibrancy, and native menu bar integration.
-5. **Rich Document Semantics:** Full GitHub Flavored Markdown (GFM), task lists, tables, callout banners (`[!NOTE]`, `[!TIP]`, `[!WARNING]`), mathematical formulas, and code block copy actions.
+5. **Universal Drag & Drop:** Drop `.md` files onto the open window (with HUD visual feedback), the Dock icon, or the application icon in Finder to open instantly.
+6. **Rich Document Semantics:** Full GitHub Flavored Markdown (GFM), task lists, tables, callout banners (`[!NOTE]`, `[!TIP]`, `[!WARNING]`), mathematical formulas, and code block copy actions.
 
 ---
 
@@ -66,16 +69,18 @@ graph TD
 
     subgraph "Layer 2: I/O & Watcher Services"
         FileWatcher[FileWatcher: DispatchSourceFileSystemObject]
+        DragDrop[DragDropHelper: Pasteboard Extraction]
         TOCParser[TOCParser: RegEx AST Extractor]
         DocState[DocumentState: State Machine & Callbacks]
     end
 
     subgraph "Layer 3: Native AppKit Chrome"
-        AppDel[AppDelegate: Menus & CLI Arguments]
+        AppDel[AppDelegate: Menus, Dock & Finder Drops]
         MainWin[MainWindowController: Unified Toolbar]
         SplitVC[NSSplitViewController]
         SidebarVC[SidebarViewController: Outline & Stats]
         ContentVC[ContentViewController: Search & Web Container]
+        DropContainer[DroppableContainerView: Visual Drop HUD]
     end
 
     subgraph "Layer 4: Offline WebKit Rendering Engine"
@@ -93,7 +98,9 @@ graph TD
     MainWin --> SplitVC
     SplitVC --> SidebarVC
     SplitVC --> ContentVC
-    ContentVC --> DropWebView
+    SidebarVC --> DropContainer
+    ContentVC --> DropContainer
+    DropContainer --> DropWebView
     DropWebView --> HTML
     HTML --> JSEngine
     SidebarVC -->|Scroll To Heading ID| JSEngine
@@ -107,12 +114,12 @@ graph TD
 ### 4.1 Application Lifecycle & Menu System
 - **Source Files:** [`main.swift`](file:///Users/slemay/Work/mdviewer/Sources/MDViewer/App/main.swift), [`AppDelegate.swift`](file:///Users/slemay/Work/mdviewer/Sources/MDViewer/App/AppDelegate.swift)
 - **Role:** Coordinates application bootstrap, sets `.regular` activation policy (dock icon visible), and builds the macOS main menu hierarchy.
-- **CLI & Finder Routing:**
-  - `applicationDidFinishLaunching`: Inspects `CommandLine.arguments` for file paths passed from terminal (e.g. `mdviewer path/to/doc.md`).
-  - `application(_:openFile:)` & `application(_:open:)`: Intercepts double-clicks from Finder, "Open With" launches, and files dragged to the Dock icon.
+- **CLI, Dock & Finder Routing:**
+  - `applicationDidFinishLaunching`: Inspects `CommandLine.arguments` for file paths passed from terminal (e.g. `mdviewer path/to/doc.md`) and sets `NSApplication.shared.applicationIconImage`.
+  - `application(_:openFile:)`, `application(_:open:)`, and `application(_:openFiles:)`: Intercepts double-clicks from Finder, "Open With" launches, and files dragged to the Dock icon or `.app` bundle, bringing the window to the front and activating the application.
   - `applicationShouldTerminateAfterLastWindowClosed`: Returns `true` to ensure the process gracefully exits when its window is closed.
 
-### 4.2 Window Controller & Layout Hierarchy
+### 4.2 Window Controller & Layout Hierarchy (Traffic Light Clearance)
 - **Source File:** [`MainWindowController.swift`](file:///Users/slemay/Work/mdviewer/Sources/MDViewer/Controllers/MainWindowController.swift)
 - **Window Specs:**
   - `styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]`
@@ -121,6 +128,9 @@ graph TD
   - Implemented using AppKit’s `NSSplitViewController`.
   - `sidebarSplitItem`: Anchored on the left, with `minimumThickness = 190pt`, `maximumThickness = 320pt`, and `allowsFullHeightLayout = true` to extend behind the titlebar.
   - `contentItem`: Flexible right-hand pane hosting `ContentViewController`.
+- **Traffic Light Clearance & Full-Height Sidebar:**
+  - Because `allowsFullHeightLayout = true` extends the sidebar view all the way to the top window edge (`y = 0`), the header container is constrained to `topAnchor + 52pt` in windowed mode.
+  - `SidebarViewController` observes `NSWindow.didEnterFullScreenNotification` and `NSWindow.didExitFullScreenNotification`, automatically adjusting top padding between `52pt` (windowed) and `16pt` (fullscreen) so the window controls never overlap the "Outline" header.
 - **Unified Toolbar Items:**
   - `toggleSidebar`: Built-in animated sidebar collapser.
   - `openFile`: Triggers `NSOpenPanel` restricted to text/markdown formats.
@@ -160,7 +170,7 @@ graph TD
 - **Bundled Engine Stack:**
   - **Marked.js (v12+):** GitHub Flavored Markdown parser.
   - **Highlight.js (v11.9):** Code block syntax highlighter supporting Swift, Python, Go, Rust, TypeScript, Bash, JSON, SQL, etc.
-  - **KaTeX (v0.16) + Fonts:** TeX math formulas rendered into SVG/HTML math nodes.
+  - **KaTeX (v0.16) + Fonts:** TeX math formulas rendered into SVG/HTML math nodes with bundled `.woff2` font files.
   - **Mermaid.js (v10.9):** Declarative diagram renderer for flowcharts, sequence diagrams, and class models.
 - **Flicker-Free Scroll Preservation:**
   Before injecting new HTML into the container, `app.js` captures `window.scrollY`. The parser updates the DOM, re-runs KaTeX and Mermaid, and immediately invokes `window.scrollTo({ top: previousScrollY, behavior: 'instant' })` on the animation frame, resulting in zero perceived scroll jumping.
@@ -181,9 +191,9 @@ graph TD
 
 ### 4.7 In-Page Search Engine
 - **Source Files:** [`ContentViewController.swift`](file:///Users/slemay/Work/mdviewer/Sources/MDViewer/Views/ContentViewController.swift), [`app.js`](file:///Users/slemay/Work/mdviewer/Sources/MDViewer/Resources/app.js)
-- **UI:** Floating `NSVisualEffectView` HUD pinned to the top-right of the content area.
+- **UI:** Floating `NSVisualEffectView` HUD pinned to the top-right of the content area (`topAnchor + 60pt`) to ensure clearance below the unified toolbar.
 - **Search Execution:**
-  - Traverses the DOM text nodes (skipping `<script>`, `<style>`, `<pre>`, and `<code>`).
+  - Traverses DOM text nodes (skipping `<script>`, `<style>`, `<pre>`, and `<code>`).
   - Highlights occurrences using `<mark class="search-match">` tags.
   - Active match highlighted with `.current` and centered via `scrollIntoView({ behavior: 'smooth', block: 'center' })`.
   - Bidirectional navigation: Previous (`chevron.up`) and Next (`chevron.down` or `Enter`).
@@ -199,6 +209,7 @@ graph TD
 - **Typography Scale:**
   - Font families: SF Pro Text (`var(--font-sans)`), New York (`var(--font-serif)`), SF Mono (`var(--font-mono)`).
   - Dynamic font-size scaling from 11px to 32px with proportional line-height (`1.65`).
+  - `#content-container` top padding set to `56px` for optimal toolbar separation.
 
 ### 4.9 Export & Print Subsystem
 - **Source File:** [`Exporter.swift`](file:///Users/slemay/Work/mdviewer/Sources/MDViewer/Services/Exporter.swift)
@@ -207,6 +218,22 @@ graph TD
   - Calls `WKWebView.createPDF(configuration:)` for vector-quality pagination and rendering.
 - **Copy Formatted HTML:**
   - Evaluates `document.getElementById('content-container').innerHTML` and writes both `public.html` and `public.utf8-plain-text` types to `NSPasteboard.general`.
+
+### 4.10 Universal Drag & Drop Subsystem
+- **Source Files:** [`DragDropHelper.swift`](file:///Users/slemay/Work/mdviewer/Sources/MDViewer/Services/DragDropHelper.swift), [`DroppableContainerView.swift`](file:///Users/slemay/Work/mdviewer/Sources/MDViewer/Views/DroppableContainerView.swift), [`DroppableWKWebView.swift`](file:///Users/slemay/Work/mdviewer/Sources/MDViewer/Views/DroppableWKWebView.swift)
+- **Three-Tier Drop Target Hierarchy:**
+  1. **Dock & Finder Icon Drops:** [`Info.plist`](file:///Users/slemay/Work/mdviewer/Info.plist) declares `UTImportedTypeDeclarations` for `net.daringfireball.markdown` conforming to `public.plain-text` with extensions `["md", "markdown", "mdown", "mkdn", "txt"]`.
+  2. **Window-Level Drops:** Both `SidebarViewController` and `ContentViewController` use `DroppableContainerView` as their root view, registered for `[.fileURL]`.
+  3. **Visual Feedback:** When dragging over the window, `DroppableContainerView` presents an animated visual HUD indicator (`arrow.down.doc.fill` + *"Drop Markdown File to Open"*).
+- **Directory Resolution:** If a folder is dropped, `DragDropHelper.resolveEffectiveURL` checks for an existing `README.md` and opens it automatically.
+- **Web Navigation Prevention:** In `app.js`, `dragover` and `drop` events call `e.preventDefault()`, preventing WebKit from replacing the HTML view with standard file browser navigation.
+
+### 4.11 Iconography & macOS Asset Bundling
+- **Source Files:** [`AppIcon.icns`](file:///Users/slemay/Work/mdviewer/Sources/MDViewer/Resources/AppIcon.icns), [`AppIcon.png`](file:///Users/slemay/Work/mdviewer/Sources/MDViewer/Resources/AppIcon.png)
+- **Icon Specifications:**
+  - Follows Apple Big Sur through Sequoia squircle guidelines with metallic bezel, charcoal tile, frosted glass document sheet, and luminous Markdown `M ↓` emblem.
+  - Multi-resolution `.icns` built via `iconutil` containing 10 scales: 16×16, 32×32 (@2x), 32×32, 64×64 (@2x), 128×128, 256×256 (@2x), 256×256, 512×512 (@2x), 512×512, and 1024×1024 (@2x Retina).
+  - Bundled automatically into `MDViewer.app/Contents/Resources/AppIcon.icns`.
 
 ---
 
@@ -218,7 +245,7 @@ graph TD
 sequenceDiagram
     autonumber
     actor User
-    participant App as AppDelegate / CLI
+    participant App as AppDelegate / CLI / Drop
     participant State as DocumentState
     participant Watcher as FileWatcher
     participant Parser as TOCParser
@@ -226,7 +253,7 @@ sequenceDiagram
     participant Web as ContentViewController / DroppableWKWebView
     participant DOM as JavaScript Engine (app.js)
 
-    User->>App: Open file (Cmd+O, Drag & Drop, or CLI)
+    User->>App: Open file (Cmd+O, Window Drag, Dock Drop, or CLI)
     App->>State: openFile(url)
     State->>Watcher: startWatching(url)
     State->>State: Read Data & UTF-8 String
@@ -315,12 +342,12 @@ let package = Package(
 ```
 
 ### 8.2 Application Bundling (`scripts/build_app.sh`)
-Because `swift build` produces a raw Unix binary, `build_app.sh` constructs the macOS `.app` bundle:
+`build_app.sh` constructs the macOS `.app` bundle:
 1. Compiles with `swift build -c release`.
 2. Creates `build/MDViewer.app/Contents/{MacOS,Resources}`.
 3. Copies the binary to `Contents/MacOS/MDViewer`.
-4. Copies `Info.plist` with `net.daringfireball.markdown` document registrations.
-5. Copies all web engine resources into `Contents/Resources/`.
+4. Copies `Info.plist` (configured with `CFBundleIconFile = "AppIcon"` and document type associations).
+5. Copies all web engine resources and `AppIcon.icns` into `Contents/Resources/`.
 6. Executes `codesign --force --deep --sign - build/MDViewer.app`.
 
 ### 8.3 CLI Installer (`scripts/install_cli.sh`)
