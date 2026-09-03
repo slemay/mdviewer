@@ -24,7 +24,7 @@ public final class SidebarViewController: NSViewController, NSTableViewDataSourc
     private var filterQuery: String = ""
 
     public override func loadView() {
-        let container = DroppableContainerView(frame: NSRect(x: 0, y: 0, width: 250, height: 600))
+        let container = SidebarDropView(frame: NSRect(x: 0, y: 0, width: 250, height: 600))
         container.autoresizingMask = [.width, .height]
         container.onFileDropped = { url in
             DocumentState.shared.openFile(url: url)
@@ -38,6 +38,14 @@ public final class SidebarViewController: NSViewController, NSTableViewDataSourc
         setupTableView()
         setupStatsFooter()
         setupBindings()
+
+        // Populate initial headings and statistics if document already loaded
+        let state = DocumentState.shared
+        if !state.headings.isEmpty {
+            self.allHeadings = state.headings
+            self.applyFilter()
+        }
+        self.updateStatsUI()
     }
 
     public override func viewWillAppear() {
@@ -322,47 +330,96 @@ public final class SidebarViewController: NSViewController, NSTableViewDataSourc
         let heading = filteredHeadings[row]
 
         let cellId = NSUserInterfaceItemIdentifier("HeadingCell")
-        var cellView = tableView.makeView(withIdentifier: cellId, owner: self) as? NSTableCellView
+        let cellView = (tableView.makeView(withIdentifier: cellId, owner: self) as? HeadingTableCellView)
+            ?? HeadingTableCellView(frame: NSRect(x: 0, y: 0, width: 240, height: 26))
+        cellView.identifier = cellId
+        cellView.configure(with: heading)
+        return cellView
+    }
+}
 
-        if cellView == nil {
-            cellView = NSTableCellView()
-            cellView?.identifier = cellId
+// MARK: - Dedicated Outline Cell View
+final class HeadingTableCellView: NSTableCellView {
+    private var leadingConstraint: NSLayoutConstraint!
 
-            let textField = NSTextField(labelWithString: "")
-            textField.translatesAutoresizingMaskIntoConstraints = false
-            textField.lineBreakMode = .byTruncatingTail
-            cellView?.addSubview(textField)
-            cellView?.textField = textField
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        setup()
+    }
 
-            NSLayoutConstraint.activate([
-                textField.leadingAnchor.constraint(equalTo: cellView!.leadingAnchor),
-                textField.trailingAnchor.constraint(equalTo: cellView!.trailingAnchor, constant: -4),
-                textField.centerYAnchor.constraint(equalTo: cellView!.centerYAnchor)
-            ])
-        }
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        setup()
+    }
 
+    private func setup() {
+        let tf = NSTextField(labelWithString: "")
+        tf.translatesAutoresizingMaskIntoConstraints = false
+        tf.lineBreakMode = .byTruncatingTail
+        addSubview(tf)
+        self.textField = tf
+
+        leadingConstraint = tf.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 6)
+        NSLayoutConstraint.activate([
+            leadingConstraint,
+            tf.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6),
+            tf.centerYAnchor.constraint(equalTo: centerYAnchor)
+        ])
+    }
+
+    func configure(with heading: HeadingItem) {
         let indent = CGFloat(max(0, heading.level - 1)) * 12
-        cellView?.textField?.stringValue = heading.title
+        leadingConstraint.constant = indent + 6
+        textField?.stringValue = heading.title
 
         switch heading.level {
         case 1:
-            cellView?.textField?.font = NSFont.systemFont(ofSize: 12.5, weight: .semibold)
-            cellView?.textField?.textColor = .labelColor
+            textField?.font = NSFont.systemFont(ofSize: 12.5, weight: .semibold)
+            textField?.textColor = .labelColor
         case 2:
-            cellView?.textField?.font = NSFont.systemFont(ofSize: 12, weight: .medium)
-            cellView?.textField?.textColor = .labelColor
+            textField?.font = NSFont.systemFont(ofSize: 12, weight: .medium)
+            textField?.textColor = .labelColor
         default:
-            cellView?.textField?.font = NSFont.systemFont(ofSize: 11.5, weight: .regular)
-            cellView?.textField?.textColor = .secondaryLabelColor
+            textField?.font = NSFont.systemFont(ofSize: 11.5, weight: .regular)
+            textField?.textColor = .secondaryLabelColor
         }
+    }
+}
 
-        // Apply indentation constraint
-        if cellView?.textField != nil {
-            for constraint in cellView!.constraints where constraint.firstAttribute == .leading {
-                constraint.constant = indent + 6
-            }
+// MARK: - Dedicated Sidebar Drop View
+final class SidebarDropView: NSView {
+    var onFileDropped: ((URL) -> Void)?
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        registerForDraggedTypes([.fileURL])
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        registerForDraggedTypes([.fileURL])
+    }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        if DragDropHelper.extractMarkdownURL(from: sender.draggingPasteboard) != nil {
+            return .copy
         }
+        return []
+    }
 
-        return cellView
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        if DragDropHelper.extractMarkdownURL(from: sender.draggingPasteboard) != nil {
+            return .copy
+        }
+        return []
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        guard let url = DragDropHelper.extractMarkdownURL(from: sender.draggingPasteboard) else {
+            return false
+        }
+        let effective = DragDropHelper.resolveEffectiveURL(for: url)
+        onFileDropped?(effective)
+        return true
     }
 }

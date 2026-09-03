@@ -3,6 +3,7 @@ import AppKit
 @MainActor
 public final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindowDelegate {
     public static let windowAutosaveName = "MDViewerMainWindow"
+    private var isSetupComplete = false
 
     private var splitVC: NSSplitViewController!
     private var sidebarVC: SidebarViewController!
@@ -22,18 +23,19 @@ public final class MainWindowController: NSWindowController, NSToolbarDelegate, 
         window.minSize = NSSize(width: 650, height: 450)
         window.isReleasedWhenClosed = false
         window.toolbarStyle = .unified
-        window.delegate = self
 
-        // Restore window frame & position from previous session, or center if first launch
+        setupSplitView()
+        setupToolbar()
+        setupStateObservers()
+
+        // Restore window frame & position AFTER all view controllers are mounted
         let restored = window.setFrameUsingName(Self.windowAutosaveName)
         if !restored {
             window.center()
         }
         window.setFrameAutosaveName(Self.windowAutosaveName)
-
-        setupSplitView()
-        setupToolbar()
-        setupStateObservers()
+        window.delegate = self
+        isSetupComplete = true
     }
 
     required init?(coder: NSCoder) {
@@ -42,7 +44,6 @@ public final class MainWindowController: NSWindowController, NSToolbarDelegate, 
 
     private func setupSplitView() {
         splitVC = NSSplitViewController()
-        splitVC.splitView.autosaveName = NSSplitView.AutosaveName("MDViewerSplitView")
 
         sidebarVC = SidebarViewController()
         sidebarSplitItem = NSSplitViewItem(sidebarWithViewController: sidebarVC)
@@ -295,14 +296,17 @@ public final class MainWindowController: NSWindowController, NSToolbarDelegate, 
 
     // MARK: - NSWindowDelegate
     public func windowDidMove(_ notification: Notification) {
+        guard isSetupComplete else { return }
         window?.saveFrame(usingName: Self.windowAutosaveName)
     }
 
     public func windowDidResize(_ notification: Notification) {
+        guard isSetupComplete else { return }
         window?.saveFrame(usingName: Self.windowAutosaveName)
     }
 
     public func windowWillClose(_ notification: Notification) {
+        guard isSetupComplete else { return }
         window?.saveFrame(usingName: Self.windowAutosaveName)
     }
 }
