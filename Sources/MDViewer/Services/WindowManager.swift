@@ -42,14 +42,21 @@ public final class WindowManager {
         wc.window?.makeKeyAndOrderFront(nil)
 
         if let url = url {
-            wc.documentState.openFile(url: url)
+            let result = MarkdownValidator.validate(url: url)
+            if result.isValid, let effective = result.effectiveURL {
+                wc.documentState.openFile(url: effective)
+            }
         }
 
         return wc
     }
 
     public func openFile(url: URL, inNewWindow: Bool = false, inNewTab: Bool = false) {
-        let effective = DragDropHelper.resolveEffectiveURL(for: url)
+        let result = MarkdownValidator.validate(url: url)
+        guard result.isValid, let effective = result.effectiveURL else {
+            _ = MarkdownValidator.presentAlertIfInvalid(for: url, in: activeWindowController?.window)
+            return
+        }
 
         // 1. Check if file is already open in an existing window or tab
         for wc in windowControllers {

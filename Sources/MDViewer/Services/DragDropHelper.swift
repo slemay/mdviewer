@@ -41,41 +41,10 @@ public enum DragDropHelper {
     }
 
     public static func isValidMarkdownFile(url: URL) -> Bool {
-        var isDir: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) else {
-            return false
-        }
-
-        if isDir.boolValue {
-            // If a directory was dropped, check if it contains a README.md
-            let readme = url.appendingPathComponent("README.md")
-            if FileManager.default.fileExists(atPath: readme.path) {
-                return true
-            }
-            return false
-        }
-
-        let ext = url.pathExtension.lowercased()
-        if supportedExtensions.contains(ext) {
-            return true
-        }
-
-        // Also permit extension-less plain text files
-        if ext.isEmpty {
-            return true
-        }
-
-        return false
+        return MarkdownValidator.validate(url: url).isValid
     }
 
     public static func resolveEffectiveURL(for url: URL) -> URL {
-        var isDir: ObjCBool = false
-        if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue {
-            let readme = url.appendingPathComponent("README.md")
-            if FileManager.default.fileExists(atPath: readme.path) {
-                return readme
-            }
-        }
-        return url
+        return MarkdownValidator.validate(url: url).effectiveURL ?? url
     }
 }

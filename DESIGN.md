@@ -23,9 +23,10 @@
    - 4.8 [Theming & Typography System](#48-theming--typography-system)
    - 4.9 [Export & Print Subsystem](#49-export--print-subsystem)
    - 4.10 [Universal Drag & Drop Subsystem](#410-universal-drag--drop-subsystem)
-   - 4.11 [Iconography & macOS Asset Bundling](#411-iconography--macos-asset-bundling)
-   - 4.12 [Settings & Preferences Window](#412-settings--preferences-window)
-   - 4.13 [About Window & Licensing Subsystem](#413-about-window--licensing-subsystem)
+   - 4.11 [Pre-flight Markdown Validation Engine](#411-pre-flight-markdown-validation-engine)
+   - 4.12 [Iconography & macOS Asset Bundling](#412-iconography--macos-asset-bundling)
+   - 4.13 [Settings & Preferences Window](#413-settings--preferences-window)
+   - 4.14 [About Window & Licensing Subsystem](#414-about-window--licensing-subsystem)
 5. [Data Flow & Sequence Diagrams](#5-data-flow--sequence-diagrams)
 6. [Security & Isolation Model (App Sandbox)](#6-security--isolation-model-app-sandbox)
 7. [Performance & Resource Characteristics](#7-performance--resource-characteristics)
@@ -253,14 +254,23 @@ graph TD
 - **Directory Resolution:** If a folder is dropped, `DragDropHelper.resolveEffectiveURL` checks for an existing `README.md` and opens it automatically.
 - **Web Navigation Prevention:** In `app.js`, `dragover` and `drop` events call `e.preventDefault()`, preventing WebKit from replacing the HTML view with standard file browser navigation.
 
-### 4.11 Iconography & macOS Asset Bundling
+### 4.11 Pre-flight Markdown Validation Engine
+- **Source File:** [`MarkdownValidator.swift`](file:///Users/slemay/Work/mdviewer/Sources/MDViewer/Services/MarkdownValidator.swift)
+- **Pre-flight Heuristics:**
+  1. *Existence & Directory Inspection:* Validates that the target file exists and is readable. If a folder is targeted, automatically discovers and resolves `README.md` or `index.md`.
+  2. *Known Binary Blocklist:* Instantly rejects common binary files (`.png`, `.jpg`, `.pdf`, `.zip`, `.dmg`, `.dylib`, `.mp4`, `.docx`, etc.).
+  3. *Null-Byte Binary Detection:* Inspects the initial 8KB data stream for `0x00` null bytes (Git-standard binary heuristic). Any binary file disguised with a `.md` extension is caught and rejected before parsing.
+  4. *Encoding Verification:* Confirms decodable text stream across UTF-8, UTF-16, ASCII, and ISO Latin-1.
+  5. *Graceful User Feedback:* Displays an informative `NSAlert` modal sheet explaining why the file could not be previewed, avoiding empty or corrupted windows.
+
+### 4.12 Iconography & macOS Asset Bundling
 - **Source Files:** [`AppIcon.icns`](file:///Users/slemay/Work/mdviewer/Sources/MDViewer/Resources/AppIcon.icns), [`AppIcon.png`](file:///Users/slemay/Work/mdviewer/Sources/MDViewer/Resources/AppIcon.png)
 - **Icon Specifications:**
   - Follows Apple Big Sur through Sequoia squircle guidelines with metallic bezel, charcoal tile, frosted glass document sheet, and luminous Markdown `M ↓` emblem.
   - Multi-resolution `.icns` built via `iconutil` containing 10 scales: 16×16, 32×32 (@2x), 32×32, 64×64 (@2x), 128×128, 256×256 (@2x), 256×256, 512×512 (@2x), 512×512, and 1024×1024 (@2x Retina).
   - Bundled automatically into `MDViewer.app/Contents/Resources/AppIcon.icns`.
 
-### 4.12 Settings & Preferences Window
+### 4.13 Settings & Preferences Window
 - **Source File:** [`PreferencesWindowController.swift`](file:///Users/slemay/Work/mdviewer/Sources/MDViewer/Controllers/PreferencesWindowController.swift)
 - **Ergonomics & Layout:** Standard macOS settings panel with `NSTabView` keyed to `Cmd + ,`:
   - **General Tab:** Allows configuring default visual attributes:
@@ -271,7 +281,7 @@ graph TD
   - **Terminal Integration Tab:** Provides a 1-click installer writing a wrapper script to `~/.local/bin/mdviewer`, plus a copyable terminal alias for shell rc files (`~/.zshrc`, `~/.bash_profile`).
 - **Persistence:** Immediately commits adjustments to `UserDefaults` keys (`MDViewerTheme`, `MDViewerFontFamily`, `MDViewerFontSize`, `MDViewerDisableLiveSync`), dynamically pushing updates across all active window controllers and open tabs.
 
-### 4.13 About Window & Licensing Subsystem
+### 4.14 About Window & Licensing Subsystem
 - **Source File:** [`AboutWindowController.swift`](file:///Users/slemay/Work/mdviewer/Sources/MDViewer/Controllers/AboutWindowController.swift)
 - **App Store & Open-Source Compliance:**
   - Dedicated AppKit panel displaying the 1024×1024 master app icon, app version (`CFBundleShortVersionString`), and build number (`CFBundleVersion`).

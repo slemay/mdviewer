@@ -122,11 +122,12 @@ mdviewer/
 │       │   ├── HeadingItem.swift    # TOC outline item model
 │       │   └── Theme.swift          # Themes & font family definitions
 │       ├── Services/
-│       │   ├── WindowManager.swift  # Multi-window & multi-tab coordinator
-│       │   ├── DragDropHelper.swift # Multi-source pasteboard extraction & file resolution
-│       │   ├── FileWatcher.swift    # Kernel DispatchSourceFileSystemObject watcher
-│       │   ├── TOCParser.swift      # Regex/AST heading extractor & statistics calculator
-│       │   └── Exporter.swift       # PDF export & HTML clipboard service
+│       │   ├── WindowManager.swift     # Multi-window & multi-tab coordinator
+│       │   ├── MarkdownValidator.swift # Pre-flight validation, encoding check & binary detection
+│       │   ├── DragDropHelper.swift    # Multi-source pasteboard extraction & file resolution
+│       │   ├── FileWatcher.swift       # Kernel DispatchSourceFileSystemObject watcher
+│       │   ├── TOCParser.swift         # Regex/AST heading extractor & statistics calculator
+│       │   └── Exporter.swift          # PDF export & HTML clipboard service
 │       ├── Views/
 │       │   ├── DocumentTabBarView.swift    # Tactile elevated card tabs with close buttons & (+) action
 │       │   ├── ContentViewController.swift # WKWebView container & in-page search bar

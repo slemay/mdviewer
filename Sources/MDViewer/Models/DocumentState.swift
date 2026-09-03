@@ -100,22 +100,33 @@ public final class DocumentState {
     }
 
     public func openFile(url: URL) {
+        let result = MarkdownValidator.validate(url: url)
+        guard result.isValid, let effective = result.effectiveURL else {
+            return
+        }
+
         stopWatching()
 
-        self.fileURL = url
-        self.fileName = url.lastPathComponent
+        self.fileURL = effective
+        self.fileName = effective.lastPathComponent
         onMetadataChanged?(self.fileName, self.fileURL)
 
         reloadCurrentFile(preserveScroll: false)
-        startWatching(url: url)
+        startWatching(url: effective)
     }
 
     public func reloadCurrentFile(preserveScroll: Bool = true) {
         guard let url = fileURL else { return }
 
+        let result = MarkdownValidator.validate(url: url)
+        guard result.isValid else { return }
+
         do {
             let data = try Data(contentsOf: url)
-            guard let content = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .ascii) else {
+            guard let content = String(data: data, encoding: .utf8) ??
+                                String(data: data, encoding: .ascii) ??
+                                String(data: data, encoding: .isoLatin1) ??
+                                String(data: data, encoding: .utf16) else {
                 return
             }
 

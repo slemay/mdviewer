@@ -210,7 +210,11 @@ public final class MainWindowController: NSWindowController, NSToolbarDelegate, 
     }
 
     public func openFileInNewTab(url: URL) {
-        let effective = DragDropHelper.resolveEffectiveURL(for: url)
+        let result = MarkdownValidator.validate(url: url)
+        guard result.isValid, let effective = result.effectiveURL else {
+            _ = MarkdownValidator.presentAlertIfInvalid(for: url, in: window)
+            return
+        }
 
         // Check if file is already open in this window
         if let existingIdx = tabs.firstIndex(where: { $0.documentState.fileURL?.standardizedFileURL == effective.standardizedFileURL }) {

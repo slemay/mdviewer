@@ -28,8 +28,11 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
             if !arg.hasPrefix("-") {
                 let expanded = NSString(string: arg).expandingTildeInPath
                 let url = URL(fileURLWithPath: expanded)
-                if FileManager.default.fileExists(atPath: url.path) {
-                    WindowManager.shared.openFile(url: url)
+                let result = MarkdownValidator.validate(url: url)
+                if result.isValid, let effective = result.effectiveURL {
+                    WindowManager.shared.openFile(url: effective)
+                } else {
+                    fputs("mdviewer: Error: \(result.failureReason ?? "Invalid markdown file.")\n", stderr)
                 }
             }
         }
@@ -46,27 +49,39 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
 
     public func application(_ application: NSApplication, openFile filename: String) -> Bool {
         let url = URL(fileURLWithPath: filename)
-        let effective = DragDropHelper.resolveEffectiveURL(for: url)
+        let result = MarkdownValidator.validate(url: url)
+        guard result.isValid, let effective = result.effectiveURL else {
+            _ = MarkdownValidator.presentAlertIfInvalid(for: url)
+            return false
+        }
         WindowManager.shared.openFile(url: effective)
         return true
     }
 
     public func application(_ application: NSApplication, open urls: [URL]) {
         for (index, url) in urls.enumerated() {
-            let effective = DragDropHelper.resolveEffectiveURL(for: url)
-            WindowManager.shared.openFile(url: effective, inNewTab: index > 0)
+            let result = MarkdownValidator.validate(url: url)
+            if result.isValid, let effective = result.effectiveURL {
+                WindowManager.shared.openFile(url: effective, inNewTab: index > 0)
+            } else {
+                _ = MarkdownValidator.presentAlertIfInvalid(for: url)
+            }
         }
     }
 
     public func application(_ sender: NSApplication, openFiles filenames: [String]) {
+        var anyOpened = false
         for (index, filename) in filenames.enumerated() {
             let url = URL(fileURLWithPath: filename)
-            if DragDropHelper.isValidMarkdownFile(url: url) {
-                let effective = DragDropHelper.resolveEffectiveURL(for: url)
+            let result = MarkdownValidator.validate(url: url)
+            if result.isValid, let effective = result.effectiveURL {
                 WindowManager.shared.openFile(url: effective, inNewTab: index > 0)
+                anyOpened = true
+            } else {
+                _ = MarkdownValidator.presentAlertIfInvalid(for: url)
             }
         }
-        sender.reply(toOpenOrPrint: .success)
+        sender.reply(toOpenOrPrint: anyOpened ? .success : .failure)
     }
 
     public func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -289,7 +304,12 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
 
         if panel.runModal() == .OK {
             for url in panel.urls {
-                WindowManager.shared.createNewWindow(opening: url, asTab: false)
+                let result = MarkdownValidator.validate(url: url)
+                if result.isValid, let effective = result.effectiveURL {
+                    WindowManager.shared.createNewWindow(opening: effective, asTab: false)
+                } else {
+                    _ = MarkdownValidator.presentAlertIfInvalid(for: url)
+                }
             }
         }
     }
