@@ -95,7 +95,7 @@ public final class ContentViewController: NSViewController, WKNavigationDelegate
         view.addSubview(searchOverlay)
 
         NSLayoutConstraint.activate([
-            searchOverlay.topAnchor.constraint(equalTo: view.topAnchor, constant: 14),
+            searchOverlay.topAnchor.constraint(equalTo: view.topAnchor, constant: 60),
             searchOverlay.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
             searchOverlay.heightAnchor.constraint(equalToConstant: 38),
 

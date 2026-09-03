@@ -2,7 +2,8 @@ import AppKit
 
 @MainActor
 public final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate, NSSearchFieldDelegate {
-    private var headerContainer: NSView!
+    private var headerContainer: NSStackView!
+    private var headerTopConstraint: NSLayoutConstraint!
     private var filterField: NSSearchField!
     private var countBadge: NSTextField!
     private var scrollView: NSScrollView!
@@ -35,9 +36,37 @@ public final class SidebarViewController: NSViewController, NSTableViewDataSourc
         setupBindings()
     }
 
+    public override func viewWillAppear() {
+        super.viewWillAppear()
+        NotificationCenter.default.addObserver(self, selector: #selector(windowDidEnterFullScreen), name: NSWindow.didEnterFullScreenNotification, object: view.window)
+        NotificationCenter.default.addObserver(self, selector: #selector(windowDidExitFullScreen), name: NSWindow.didExitFullScreenNotification, object: view.window)
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    @objc private func windowDidEnterFullScreen() {
+        headerTopConstraint?.constant = 16
+    }
+
+    @objc private func windowDidExitFullScreen() {
+        headerTopConstraint?.constant = 52
+    }
+
     private func setupHeader() {
-        headerContainer = NSView()
+        headerContainer = NSStackView()
+        headerContainer.orientation = .vertical
+        headerContainer.alignment = .leading
+        headerContainer.spacing = 8
         headerContainer.translatesAutoresizingMaskIntoConstraints = false
+
+        // Row 1: Title & Badge
+        let titleRow = NSStackView()
+        titleRow.orientation = .horizontal
+        titleRow.alignment = .centerY
+        titleRow.spacing = 8
+        titleRow.translatesAutoresizingMaskIntoConstraints = false
 
         let titleLabel = NSTextField(labelWithString: "Outline")
         titleLabel.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
@@ -51,36 +80,38 @@ public final class SidebarViewController: NSViewController, NSTableViewDataSourc
         countBadge.layer?.backgroundColor = NSColor.secondaryLabelColor.withAlphaComponent(0.15).cgColor
         countBadge.layer?.cornerRadius = 8
         countBadge.translatesAutoresizingMaskIntoConstraints = false
+        countBadge.isHidden = true
 
+        let spacer = NSView()
+        spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        spacer.translatesAutoresizingMaskIntoConstraints = false
+
+        titleRow.addArrangedSubview(titleLabel)
+        titleRow.addArrangedSubview(spacer)
+        titleRow.addArrangedSubview(countBadge)
+
+        // Row 2: Filter Field
         filterField = NSSearchField()
         filterField.placeholderString = "Filter headings..."
         filterField.delegate = self
         filterField.translatesAutoresizingMaskIntoConstraints = false
         filterField.font = NSFont.systemFont(ofSize: 12)
+        filterField.isHidden = true
 
-        headerContainer.addSubview(titleLabel)
-        headerContainer.addSubview(countBadge)
-        headerContainer.addSubview(filterField)
+        headerContainer.addArrangedSubview(titleRow)
+        headerContainer.addArrangedSubview(filterField)
 
         view.addSubview(headerContainer)
 
+        // Top offset of 52 ensures clean spacing below macOS traffic light buttons
+        headerTopConstraint = headerContainer.topAnchor.constraint(equalTo: view.topAnchor, constant: 52)
+
         NSLayoutConstraint.activate([
-            headerContainer.topAnchor.constraint(equalTo: view.topAnchor, constant: 12),
+            headerTopConstraint,
             headerContainer.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 14),
             headerContainer.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -14),
-
-            titleLabel.topAnchor.constraint(equalTo: headerContainer.topAnchor),
-            titleLabel.leadingAnchor.constraint(equalTo: headerContainer.leadingAnchor),
-
-            countBadge.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
-            countBadge.trailingAnchor.constraint(equalTo: headerContainer.trailingAnchor),
-            countBadge.widthAnchor.constraint(greaterThanOrEqualToConstant: 22),
-            countBadge.heightAnchor.constraint(equalToConstant: 16),
-
-            filterField.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 8),
-            filterField.leadingAnchor.constraint(equalTo: headerContainer.leadingAnchor),
-            filterField.trailingAnchor.constraint(equalTo: headerContainer.trailingAnchor),
-            filterField.bottomAnchor.constraint(equalTo: headerContainer.bottomAnchor)
+            titleRow.widthAnchor.constraint(equalTo: headerContainer.widthAnchor),
+            filterField.widthAnchor.constraint(equalTo: headerContainer.widthAnchor)
         ])
     }
 
@@ -246,6 +277,7 @@ public final class SidebarViewController: NSViewController, NSTableViewDataSourc
 
         countBadge.stringValue = "\(allHeadings.count)"
         countBadge.isHidden = allHeadings.isEmpty
+        filterField.isHidden = allHeadings.count < 5
         emptyLabel.isHidden = !filteredHeadings.isEmpty
 
         tableView.reloadData()
