@@ -146,6 +146,11 @@
             <p class="faq-answer">Choose <strong>File &gt; Save as PDF...</strong> (<code>Cmd + P</code>) to create a clean, paginated vector PDF. You can also choose <strong>Edit &gt; Copy Rendered HTML</strong> (<code>Cmd + Shift + C</code>) to copy formatted HTML to your clipboard.</p>
         </div>
 
+        <div class="faq-item">
+            <h2 class="faq-question">Why did MDViewer say &ldquo;Cannot Open Document&rdquo;?</h2>
+            <p class="faq-answer">MDViewer runs automated pre-flight checks before opening any document to ensure security and prevent crashes. It verifies the file exists and is readable, confirms the text encoding (UTF-8, UTF-16, ASCII, Latin-1), and screens the file header for binary null bytes (<code>0x00</code>) or unsupported binary formats (such as images or archives renamed to <code>.md</code>). If you select a folder, ensure it contains a <code>README.md</code> or <code>index.md</code> file.</p>
+        </div>
+
         <div class="contact-box">
             <h2>Need Further Assistance?</h2>
             <p style="color: var(--secondary); margin-bottom: 14px;">Found a bug or have an idea for an improvement? Open an issue directly on our GitHub tracker.</p>

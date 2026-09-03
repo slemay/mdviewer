@@ -51,7 +51,14 @@ Go to **MDViewer > Settings...** (`Cmd + ,`), select the **Terminal Integration*
 Use the toolbar menus or press `Cmd + ,` to open **Settings**, where you can configure:
 * **Themes:** System (Auto Light/Dark), GitHub Light, GitHub Dark, Dracula, Nord, Sepia.
 * **Typography:** San Francisco (Sans), New York (Serif), SF Mono.
-* **Font Scaling:** `Cmd + +` to zoom in, `Cmd + -` to zoom out, `Cmd + 0` to reset.
+* **Font & Media Scaling:** `Cmd + +` to zoom in, `Cmd + -` to zoom out, `Cmd + 0` to reset. All images, Mermaid diagrams, and embedded media scale proportionally with your font size without clipping.
+
+#### 7. Why did MDViewer display "Cannot Open Document"?
+MDViewer performs pre-flight verification on all files before opening to ensure security and prevent rendering glitches. It verifies:
+* That the target file exists and has read permissions.
+* That the file is not an unsupported binary format (e.g., images, archives, PDFs, executables).
+* That the file does not contain binary null bytes (`0x00`) or unreadable encodings (catching binary files disguised as `.md`).
+* If opening a folder, that the folder contains a `README.md` or `index.md`.
 
 ---
 

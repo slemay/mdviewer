@@ -153,12 +153,11 @@ graph TD
   - Implements `NSWindowDelegate` (`windowDidMove`, `windowDidResize`, `windowWillClose`) guarded by `isSetupComplete` so user adjustments are immediately committed to `UserDefaults` without saving temporary initialization geometries.
   - Sidebar layout is managed natively by `NSSplitViewController` without fixed subview overriding.
 - **Unified Toolbar Items:**
-  - `toggleSidebar`: Built-in animated sidebar collapser.
-  - `newTab`: Direct `(+)` action in the header to open or create markdown documents at all times.
+  - `toggleSidebar`: Built-in animated sidebar collapser (`Cmd + Option + S`).
   - `openFile`: Triggers `NSOpenPanel` supporting multiple file selection (opened as tabs).
   - `reloadFile`: Instant manual refresh (`Cmd + R`).
   - `typography`: `NSPopUpButton` for Sans (SF Pro), Serif (New York), Monospace (SF Mono).
-  - `fontSize`: Segmented control for incrementing/decrementing font scale (`Cmd +`, `Cmd -`, `Cmd 0`).
+  - `fontSize`: Segmented control for incrementing/decrementing font and object scale (`Cmd +`, `Cmd -`, `Cmd 0`).
   - `theme`: Popup menu for switching between System, GitHub Light, GitHub Dark, Dracula, Nord, and Sepia.
   - `search`: Toggle in-page search bar (`Cmd + F`).
   - `export`: Dropdown for "Save as PDF..." (`Cmd + P`), "Copy Rendered HTML" (`Cmd + Shift + C`), and "Copy Markdown Source".
@@ -200,6 +199,14 @@ graph TD
   - **Mermaid.js (v10.9):** Declarative diagram renderer for flowcharts, sequence diagrams, and class models.
 - **Flicker-Free Scroll Preservation:**
   Before injecting new HTML into the container, `app.js` captures `window.scrollY`. The parser updates the DOM, re-runs KaTeX and Mermaid, and immediately invokes `window.scrollTo({ top: previousScrollY, behavior: 'instant' })` on the animation frame, resulting in zero perceived scroll jumping.
+- **Smart Multi-Tier Heading & In-Page Link Resolver:**
+  In-page links (e.g. `[Section](#section-title)` or TOC items) are routed to `window.scrollToHeading`, which evaluates a 5-tier resolution engine (`window.findHeadingElement`):
+  1. *Direct ID Match:* Matches exact or URL-decoded heading ID.
+  2. *Anchor Name Match:* Matches `<a name="...">` tags.
+  3. *Normalized Slugs:* Bridges single-hyphen vs GitHub double-hyphen (`--`) differences caused by stripped punctuation.
+  4. *Heading Text Slugification:* Generates live slug from `heading.textContent` to resolve custom link text.
+  5. *Section Number & Keyword Containment:* Resolves numerical prefixes (e.g. `#42-...` matches `4.2 Window Controller...`) and unique keyword substrings.
+  Once located, the viewport smoothly glides to the target with `scrollIntoView({ behavior: 'smooth', block: 'start' })`, and the destination heading pulses with a subtle accent glow (`.heading-target-pulse`).
 - **Relative Image Handling:**
   `WKWebView.loadFileURL(indexURL, allowingReadAccessTo: baseDirectory)` provides read access to the directory of the loaded Markdown file, allowing `./images/diagram.png` to load naturally.
 
@@ -224,7 +231,7 @@ graph TD
   - Active match highlighted with `.current` and centered via `scrollIntoView({ behavior: 'smooth', block: 'center' })`.
   - Bidirectional navigation: Previous (`chevron.up`) and Next (`chevron.down` or `Enter`).
 
-### 4.8 Theming & Typography System
+### 4.8 Theming, Typography & Object Scaling System
 - **CSS Custom Properties:** Controlled dynamically via root classes on `<html>`:
   - `theme-system`: Synchronizes with macOS `AppleInterfaceStyle` via `@media (prefers-color-scheme: dark)`.
   - `theme-github-light`: Standard GitHub README presentation.
@@ -232,9 +239,11 @@ graph TD
   - `theme-dracula`: Classic Dracula vampire theme (`#282a36`, `#bd93f9`).
   - `theme-nord`: Arctic, north-bluish palette (`#2e3440`, `#88c0d0`).
   - `theme-sepia`: Warm editorial reading mode (`#f7f3e8`, `#433422`).
-- **Typography Scale:**
+- **Typography & Proportional Object Scaling:**
   - Font families: SF Pro Text (`var(--font-sans)`), New York (`var(--font-serif)`), SF Mono (`var(--font-mono)`).
   - Dynamic font-size scaling from 11px to 32px with proportional line-height (`1.65`).
+  - **Proportional Media Scaling:** When adjusting font size, `window.setFont` calculates `--object-scale: (fontSizePx / 16.0)` and applies CSS zoom to all images (`img`), Mermaid diagrams (`.mermaid-wrapper`), videos, and canvases with overflow protection (`max-width: calc(100% / var(--object-scale, 1))`).
+  - `#content-container` max-width scales dynamically (`calc(820px * var(--object-scale, 1))`) so zoomed documents maintain comfortable reading margins without text truncation.
   - `#content-container` top padding set to `56px` for optimal toolbar separation.
 
 ### 4.9 Export & Print Subsystem

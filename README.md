@@ -21,7 +21,16 @@ Designed to feel right at home on modern macOS with unified toolbars, full-heigh
   - Drag files onto the **Dock icon** or the **`MDViewer.app` bundle in Finder** to open immediately.
   - Drop multiple markdown files at once to open them as separate tabs automatically.
   - Drop a directory onto the app to automatically open its `README.md`.
-- **📑 Hierarchical Outline (TOC)**: Automatically extracts `H1`–`H6` headings into a clean interactive sidebar with search filtering and smooth jump-to-section navigation.
+- **📑 Hierarchical Outline (TOC) & Smart Link Navigation**:
+  - Automatically extracts `H1`–`H6` headings into a clean interactive sidebar with search filtering.
+  - Multi-tier in-page link resolver bridging GitHub-style double-hyphen slugs (`--`), section number prefixes (e.g. `#42-...` -> `4.2`), and text keywords.
+  - Smooth animated jump-to-section navigation with an eye-catching accent pulse glow (`.heading-target-pulse`).
+- **🖼 Proportional Image & Object Scaling**:
+  - Zooming (`Cmd +` / `Cmd -` or the Settings slider) scales not just text, but all images (`img`), Mermaid diagrams, and media objects proportionally via `--object-scale`.
+  - Max reading width automatically expands with zoom level to ensure images and text never get cramped.
+- **🛡 Pre-flight File Validation**:
+  - Thoroughly tests files before opening (`MarkdownValidator.swift`) across all launch points (Finder, CLI, Drag & Drop, and Open panel).
+  - Rejects binary files, checks permissions, resolves folders with `README.md`, and inspects file headers for null bytes (`0x00`) with native `NSAlert` modal feedback.
 - **📊 Document Statistics**: Real-time word count, character count, estimated reading time, file size, and last modified timestamp.
 - **🧮 Mathematics (KaTeX)**: Full inline (`$...$`) and block (`$$...$$`) LaTeX equation rendering with bundled TeX fonts.
 - **🎨 Code Syntax Highlighting**: Automatic language detection, line numbers, and one-click copy button with clipboard feedback.
@@ -30,7 +39,7 @@ Designed to feel right at home on modern macOS with unified toolbars, full-heigh
 - **🌗 Themes & Typography**:
   - Themes: System (Auto Light/Dark), GitHub Light, GitHub Dark, Dracula, Nord, Sepia.
   - Typography: San Francisco (Sans), New York (Serif), SF Mono.
-  - Interactive font scaling (`Cmd +` / `Cmd -` / `Cmd 0`).
+  - Interactive font and object scaling (`Cmd +` / `Cmd -` / `Cmd 0`).
 - **🔍 In-Page Search**: Fast animated find bar (`Cmd + F`) positioned cleanly below the toolbar with match count and cycling.
 - **📄 Export & Share**: Direct export to PDF (`Cmd + P`), Copy Rendered HTML (`Cmd + Shift + C`), or copy raw Markdown.
 - **📐 Window State Persistence**: Automatically remembers window dimensions, screen coordinates, and sidebar split width across launches using native AppKit frame autosave.
