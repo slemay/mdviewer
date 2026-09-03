@@ -223,13 +223,26 @@ public final class PreferencesWindowController: NSWindowController {
     }
 
     @objc private func installCLIToDefaultLocation() {
-        let homeDir = FileManager.default.homeDirectoryForCurrentUser
-        let localBin = homeDir.appendingPathComponent(".local/bin")
-        let targetScript = localBin.appendingPathComponent("mdviewer")
+        let panel = NSOpenPanel()
+        panel.message = "Choose a directory in your PATH to install the 'mdviewer' CLI tool (e.g. ~/.local/bin):"
+        panel.prompt = "Install Here"
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.allowsMultipleSelection = false
 
+        let realHome = URL(fileURLWithPath: NSHomeDirectory())
+        let defaultBin = realHome.appendingPathComponent(".local/bin")
+        if FileManager.default.fileExists(atPath: defaultBin.path) {
+            panel.directoryURL = defaultBin
+        } else {
+            panel.directoryURL = realHome
+        }
+
+        guard panel.runModal() == .OK, let selectedDir = panel.url else { return }
+
+        let targetScript = selectedDir.appendingPathComponent("mdviewer")
         do {
-            try FileManager.default.createDirectory(at: localBin, withIntermediateDirectories: true)
-
             let appBundlePath = Bundle.main.bundlePath
             let scriptContent = """
             #!/bin/bash
@@ -240,11 +253,10 @@ public final class PreferencesWindowController: NSWindowController {
                 open -a "\(appBundlePath)" "$@"
             fi
             """
-
             try scriptContent.write(to: targetScript, atomically: true, encoding: .utf8)
             try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: targetScript.path)
 
-            cliStatusLabel.stringValue = "✓ Installed successfully to ~/.local/bin/mdviewer"
+            cliStatusLabel.stringValue = "✓ Installed successfully to \(targetScript.path)"
             cliStatusLabel.textColor = .systemGreen
         } catch {
             cliStatusLabel.stringValue = "Error installing: \(error.localizedDescription)"

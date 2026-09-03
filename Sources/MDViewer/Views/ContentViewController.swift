@@ -60,7 +60,7 @@ public final class ContentViewController: NSViewController, WKNavigationDelegate
         webView = DroppableWKWebView(frame: view.bounds, configuration: config)
         webView.autoresizingMask = [.width, .height]
         webView.navigationDelegate = self
-        webView.setValue(false, forKey: "drawsBackground")
+        webView.underPageBackgroundColor = .clear
 
         webView.onFileDropped = { [weak self] url in
             self?.documentState.openFile(url: url)
