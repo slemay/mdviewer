@@ -24,8 +24,10 @@
    - 4.9 [Export & Print Subsystem](#49-export--print-subsystem)
    - 4.10 [Universal Drag & Drop Subsystem](#410-universal-drag--drop-subsystem)
    - 4.11 [Iconography & macOS Asset Bundling](#411-iconography--macos-asset-bundling)
+   - 4.12 [Settings & Preferences Window](#412-settings--preferences-window)
+   - 4.13 [About Window & Licensing Subsystem](#413-about-window--licensing-subsystem)
 5. [Data Flow & Sequence Diagrams](#5-data-flow--sequence-diagrams)
-6. [Security & Isolation Model](#6-security--isolation-model)
+6. [Security & Isolation Model (App Sandbox)](#6-security--isolation-model-app-sandbox)
 7. [Performance & Resource Characteristics](#7-performance--resource-characteristics)
 8. [Packaging, Build & CLI Integration](#8-packaging-build--cli-integration)
 9. [Future Roadmap & Extensibility](#9-future-roadmap--extensibility)
@@ -258,6 +260,24 @@ graph TD
   - Multi-resolution `.icns` built via `iconutil` containing 10 scales: 16×16, 32×32 (@2x), 32×32, 64×64 (@2x), 128×128, 256×256 (@2x), 256×256, 512×512 (@2x), 512×512, and 1024×1024 (@2x Retina).
   - Bundled automatically into `MDViewer.app/Contents/Resources/AppIcon.icns`.
 
+### 4.12 Settings & Preferences Window
+- **Source File:** [`PreferencesWindowController.swift`](file:///Users/slemay/Work/mdviewer/Sources/MDViewer/Controllers/PreferencesWindowController.swift)
+- **Ergonomics & Layout:** Standard macOS settings panel with `NSTabView` keyed to `Cmd + ,`:
+  - **General Tab:** Allows configuring default visual attributes:
+    - *Default Theme:* System Auto, GitHub Light, GitHub Dark, Dracula, Nord, Sepia.
+    - *Default Font:* San Francisco (Sans), New York (Serif), SF Mono.
+    - *Default Font Scale:* Continuous point slider (12pt – 26pt) with real-time feedback.
+    - *Live Sync Toggle:* Enable/disable background kernel file modification observation.
+  - **Terminal Integration Tab:** Provides a 1-click installer writing a wrapper script to `~/.local/bin/mdviewer`, plus a copyable terminal alias for shell rc files (`~/.zshrc`, `~/.bash_profile`).
+- **Persistence:** Immediately commits adjustments to `UserDefaults` keys (`MDViewerTheme`, `MDViewerFontFamily`, `MDViewerFontSize`, `MDViewerDisableLiveSync`), dynamically pushing updates across all active window controllers and open tabs.
+
+### 4.13 About Window & Licensing Subsystem
+- **Source File:** [`AboutWindowController.swift`](file:///Users/slemay/Work/mdviewer/Sources/MDViewer/Controllers/AboutWindowController.swift)
+- **App Store & Open-Source Compliance:**
+  - Dedicated AppKit panel displaying the 1024×1024 master app icon, app version (`CFBundleShortVersionString`), and build number (`CFBundleVersion`).
+  - **Acknowledgments Tab:** Embeds verbatim MIT license texts for all bundled open-source dependencies (**Marked.js**, **KaTeX**, **Prism.js**, **Mermaid.js**), ensuring full legal compliance for commercial distribution on the Mac App Store.
+  - One-click access to the official GitHub repository.
+
 ---
 
 ## 5. Data Flow & Sequence Diagrams
@@ -318,14 +338,19 @@ sequenceDiagram
 
 ---
 
-## 6. Security & Isolation Model
+## 6. Security & Isolation Model (App Sandbox)
 
 Because Markdown viewers parse arbitrary user files that may originate from untrusted repositories or the internet, `MDViewer` enforces defense-in-depth isolation:
 
-1. **Network Disconnection:** `WKPreferences.allowsContentJavaScript = true`, but no remote HTTP requests are ever initiated by the app. All scripts, stylesheets, and fonts reside in the application bundle.
-2. **External Link Interception:** Any anchor tag pointing to `http://`, `https://`, or `mailto:` is intercepted by the JavaScript bridge (`openExternalURL`). Instead of navigating inside the webview, `NSWorkspace.shared.open(url)` passes the URL to the user's default macOS browser.
-3. **Local File Sandbox Boundaries:** When loading `index.html`, `WKWebView.loadFileURL(allowingReadAccessTo:)` restricts file reading permissions strictly to the document’s parent directory and the application bundle resources.
-4. **HTML Sanitization:** Raw script tags embedded inside Markdown files are escaped by default by Marked.js unless explicitly whitelisted.
+1. **Mac App Store Sandbox Enforcement:**
+   - Enforced via `MDViewer.entitlements` (`com.apple.security.app-sandbox = true`).
+   - `com.apple.security.files.user-selected.read-write`: Grants dynamic sandbox extensions strictly to user-opened markdown documents, dropped files, and save panel export destinations.
+   - `com.apple.security.network.client`: Permits outgoing client requests solely for loading remote markdown images and status badges.
+   - `com.apple.security.print`: Authorizes vector PDF creation and print spooling.
+2. **Offline Core:** All core parsing engines (Marked.js, KaTeX, Prism, Mermaid) and styles reside inside the secure, read-only application bundle.
+3. **External Link Interception:** Any anchor tag pointing to `http://`, `https://`, or `mailto:` is intercepted by the JavaScript bridge (`openExternalURL`). Instead of navigating inside the webview, `NSWorkspace.shared.open(url)` safely passes the URL to the user's default macOS browser.
+4. **Local File Sandbox Boundaries:** When loading `index.html`, `WKWebView.loadFileURL(allowingReadAccessTo:)` restricts file reading permissions strictly to the application bundle resources and user-approved file directories.
+5. **HTML Sanitization:** Raw executable script tags embedded inside Markdown files are escaped by default by Marked.js unless explicitly whitelisted.
 
 ---
 

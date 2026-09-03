@@ -93,6 +93,7 @@ Or simply drag & drop any `.md` file onto `MDViewer.app` or its running window!
 | `Cmd + 0` | Reset font size to default (16px) |
 | `Cmd + W` | Close active window or tab |
 | `Cmd + Option + W` | Close all open windows |
+| `Cmd + ,` | Open Settings / Preferences |
 | `Cmd + Q` | Quit MDViewer |
 
 ---
