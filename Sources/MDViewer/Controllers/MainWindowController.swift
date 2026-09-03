@@ -1,7 +1,9 @@
 import AppKit
 
 @MainActor
-public final class MainWindowController: NSWindowController, NSToolbarDelegate {
+public final class MainWindowController: NSWindowController, NSToolbarDelegate, NSWindowDelegate {
+    public static let windowAutosaveName = "MDViewerMainWindow"
+
     private var splitVC: NSSplitViewController!
     private var sidebarVC: SidebarViewController!
     private var contentVC: ContentViewController!
@@ -20,6 +22,14 @@ public final class MainWindowController: NSWindowController, NSToolbarDelegate {
         window.minSize = NSSize(width: 650, height: 450)
         window.isReleasedWhenClosed = false
         window.toolbarStyle = .unified
+        window.delegate = self
+
+        // Restore window frame & position from previous session, or center if first launch
+        let restored = window.setFrameUsingName(Self.windowAutosaveName)
+        if !restored {
+            window.center()
+        }
+        window.setFrameAutosaveName(Self.windowAutosaveName)
 
         setupSplitView()
         setupToolbar()
@@ -32,6 +42,7 @@ public final class MainWindowController: NSWindowController, NSToolbarDelegate {
 
     private func setupSplitView() {
         splitVC = NSSplitViewController()
+        splitVC.splitView.autosaveName = NSSplitView.AutosaveName("MDViewerSplitView")
 
         sidebarVC = SidebarViewController()
         sidebarSplitItem = NSSplitViewItem(sidebarWithViewController: sidebarVC)
@@ -280,5 +291,18 @@ public final class MainWindowController: NSWindowController, NSToolbarDelegate {
         let pb = NSPasteboard.general
         pb.clearContents()
         pb.setString(DocumentState.shared.rawContent, forType: .string)
+    }
+
+    // MARK: - NSWindowDelegate
+    public func windowDidMove(_ notification: Notification) {
+        window?.saveFrame(usingName: Self.windowAutosaveName)
+    }
+
+    public func windowDidResize(_ notification: Notification) {
+        window?.saveFrame(usingName: Self.windowAutosaveName)
+    }
+
+    public func windowWillClose(_ notification: Notification) {
+        window?.saveFrame(usingName: Self.windowAutosaveName)
     }
 }

@@ -131,6 +131,10 @@ graph TD
 - **Traffic Light Clearance & Full-Height Sidebar:**
   - Because `allowsFullHeightLayout = true` extends the sidebar view all the way to the top window edge (`y = 0`), the header container is constrained to `topAnchor + 52pt` in windowed mode.
   - `SidebarViewController` observes `NSWindow.didEnterFullScreenNotification` and `NSWindow.didExitFullScreenNotification`, automatically adjusting top padding between `52pt` (windowed) and `16pt` (fullscreen) so the window controls never overlap the "Outline" header.
+- **Window Frame & Split View Persistence:**
+  - `window.setFrameAutosaveName("MDViewerMainWindow")` and `window.setFrameUsingName("MDViewerMainWindow")` automatically record and restore window size and screen coordinates across application launches.
+  - Implements `NSWindowDelegate` (`windowDidMove`, `windowDidResize`, `windowWillClose`) to immediately commit changes to `UserDefaults`.
+  - `splitVC.splitView.autosaveName = "MDViewerSplitView"` preserves the user's custom sidebar divider width and collapse state across sessions.
 - **Unified Toolbar Items:**
   - `toggleSidebar`: Built-in animated sidebar collapser.
   - `openFile`: Triggers `NSOpenPanel` restricted to text/markdown formats.

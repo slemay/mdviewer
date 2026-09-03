@@ -25,6 +25,7 @@ Designed to feel right at home on modern macOS with unified toolbars, full-heigh
   - Interactive font scaling (`Cmd +` / `Cmd -` / `Cmd 0`).
 - **🔍 In-Page Search**: Fast animated find bar (`Cmd + F`) positioned cleanly below the toolbar with match count and cycling.
 - **📄 Export & Share**: Direct export to PDF (`Cmd + P`), Copy Rendered HTML (`Cmd + Shift + C`), or copy raw Markdown.
+- **📐 Window State Persistence**: Automatically remembers window dimensions, screen coordinates, and sidebar split width across launches using native AppKit frame autosave.
 - **🎨 Native macOS App Icon**: Bundled with a custom high-resolution Apple icon (`AppIcon.icns`) supporting 16×16 through 1024×1024 @2x Retina.
 - **📦 100% Offline**: Zero external network dependencies. All fonts, styles, and parsers are bundled inside the app.
 
