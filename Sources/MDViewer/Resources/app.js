@@ -277,6 +277,8 @@
 
     if (fontSizePx && fontSizePx > 0) {
       html.style.setProperty('--font-size-base', `${fontSizePx}px`);
+      const scale = (fontSizePx / 16.0).toFixed(4);
+      html.style.setProperty('--object-scale', scale);
     }
   };
 

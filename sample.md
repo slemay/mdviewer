@@ -111,7 +111,12 @@ pub fn read_markdown(path: &str) -> io::Result<String> {
 
 ---
 
-## 4. Tables and Task Lists
+## 4. Tables, Task Lists & Images
+
+### Visual Media & Images
+Images and diagram objects automatically scale proportionally when you adjust the font scale (`Cmd +` / `Cmd -` or the Settings slider).
+
+![MDViewer Icon](Sources/MDViewer/Resources/AppIcon.png)
 
 ### Feature Comparison Matrix
 

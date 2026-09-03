@@ -4,6 +4,7 @@
   --font-mono: "SF Mono", "Menlo", "Monaco", "Courier New", monospace;
   --current-font-family: var(--font-sans);
   --font-size-base: 16px;
+  --object-scale: 1;
   --line-height-base: 1.65;
 
   /* Default Light Theme variables */
@@ -197,9 +198,10 @@ body {
 
 #content-container {
   width: 100%;
-  max-width: 820px;
+  max-width: calc(820px * var(--object-scale, 1));
   padding: 56px 32px 96px 32px;
   margin: 0 auto;
+  transition: max-width 0.2s ease;
 }
 
 /* Headings */
@@ -430,13 +432,24 @@ tr:nth-child(2n) {
   background-color: var(--table-stripe);
 }
 
-/* Images */
+/* Images & Media Objects */
 img {
-  max-width: 100%;
+  max-width: calc(100% / var(--object-scale, 1));
   height: auto;
   border-radius: 6px;
   display: block;
   margin: 1em auto;
+  zoom: var(--object-scale, 1);
+  transition: zoom 0.15s ease;
+}
+
+video, iframe, canvas, embed, object {
+  max-width: calc(100% / var(--object-scale, 1));
+  border-radius: 6px;
+  display: block;
+  margin: 1em auto;
+  zoom: var(--object-scale, 1);
+  transition: zoom 0.15s ease;
 }
 
 /* Mermaid Diagrams */
@@ -450,6 +463,8 @@ img {
   border: 1px solid var(--border-muted);
   border-radius: 8px;
   overflow-x: auto;
+  zoom: var(--object-scale, 1);
+  transition: zoom 0.15s ease;
 }
 
 .mermaid svg {

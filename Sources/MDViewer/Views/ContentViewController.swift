@@ -184,8 +184,13 @@ public final class ContentViewController: NSViewController, WKNavigationDelegate
             print("[MDViewer] Error: Could not find index.html")
             return
         }
-        // Sandbox-compliant read access to bundle resources
-        let readAccessURL = Bundle.main.resourceURL ?? indexURL.deletingLastPathComponent()
+        // Sandbox-compliant read access to resources
+        let readAccessURL: URL
+        if let bundleResource = Bundle.main.resourceURL, indexURL.path.hasPrefix(bundleResource.path) {
+            readAccessURL = bundleResource
+        } else {
+            readAccessURL = indexURL.deletingLastPathComponent()
+        }
         webView.loadFileURL(indexURL, allowingReadAccessTo: readAccessURL)
     }
 
