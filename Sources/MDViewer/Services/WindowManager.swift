@@ -53,8 +53,8 @@ public final class WindowManager {
 
         // 1. Check if file is already open in an existing window or tab
         for wc in windowControllers {
-            if let openURL = wc.documentState.fileURL,
-               openURL.standardizedFileURL == effective.standardizedFileURL {
+            if let idx = wc.tabs.firstIndex(where: { $0.documentState.fileURL?.standardizedFileURL == effective.standardizedFileURL }) {
+                wc.switchToTab(index: idx)
                 wc.window?.makeKeyAndOrderFront(nil)
                 NSApplication.shared.activate(ignoringOtherApps: true)
                 return
@@ -68,23 +68,16 @@ public final class WindowManager {
             return
         }
 
-        // 3. Explicit new tab requested
-        if inNewTab {
-            createNewWindow(opening: effective, asTab: true)
-            NSApplication.shared.activate(ignoringOtherApps: true)
-            return
-        }
-
-        // 4. Default: check if active window has no document open
-        if let active = activeWindowController, active.documentState.fileURL == nil {
-            active.documentState.openFile(url: effective)
+        // 3. If active window exists, open into a tab in that window
+        if let active = activeWindowController {
+            active.openFileInNewTab(url: effective)
             active.window?.makeKeyAndOrderFront(nil)
             NSApplication.shared.activate(ignoringOtherApps: true)
             return
         }
 
-        // 5. Otherwise, open in a new tab attached to the active window
-        createNewWindow(opening: effective, asTab: true)
+        // 4. Otherwise create a new window
+        createNewWindow(opening: effective, asTab: false)
         NSApplication.shared.activate(ignoringOtherApps: true)
     }
 

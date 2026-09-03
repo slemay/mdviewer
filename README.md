@@ -9,18 +9,19 @@ Designed to feel right at home on modern macOS with unified toolbars, full-heigh
 ## ✨ Features
 
 - **⚡️ Instant Live File Sync**: Automatically monitors opened files with kernel events (`DispatchSourceFileSystemObject`). Saves made in terminal or external editors refresh instantaneously while preserving exact scroll position.
-- **🗂 Native Multi-Tab & Multi-Window Support**:
+- **🗂 Prominent Document Tab Bar & Multi-Window Support**:
+  - Always-visible, dedicated tab bar displaying tabs even on a single open document or untitled state.
+  - Tactile, modern elevated card tabs with active color indicator strip, rounded top corners, document icons, and interactive close (`✕`) buttons.
+  - Quick `(+)` action in both the toolbar header and tab bar to open new markdown documents at all times.
   - Open documents in tabs (`Cmd + T`) or independent windows (`Cmd + N`).
-  - Native macOS tab bar with `+` button, drag-and-drop tab reordering, and detachable tabs.
   - Cycle through tabs using standard macOS shortcuts (`Cmd + Shift + [` / `Cmd + Shift + ]`).
-  - Merge all windows into tabs (`Window > Merge All Windows`) or move tabs into separate windows.
   - Independent `DocumentState`, kernel file watchers, search states, and scroll positions per tab/window.
 - **🎯 Universal Drag & Drop**:
-  - Drag `.md` files directly onto the **open window** (sidebar, toolbar, or content area) with an animated visual HUD indicator.
+  - Drag `.md` files directly onto the **open window** (tab bar, sidebar, toolbar, or content area) with an animated visual HUD indicator.
   - Drag files onto the **Dock icon** or the **`MDViewer.app` bundle in Finder** to open immediately.
   - Drop multiple markdown files at once to open them as separate tabs automatically.
   - Drop a directory onto the app to automatically open its `README.md`.
-- **📑 Hierarchical Outline (TOC)**: Automatically extracts `H1`–`H6` headings into an interactive sidebar with search filtering and smooth jump-to-section navigation.
+- **📑 Hierarchical Outline (TOC)**: Automatically extracts `H1`–`H6` headings into a clean interactive sidebar with search filtering and smooth jump-to-section navigation.
 - **📊 Document Statistics**: Real-time word count, character count, estimated reading time, file size, and last modified timestamp.
 - **🧮 Mathematics (KaTeX)**: Full inline (`$...$`) and block (`$$...$$`) LaTeX equation rendering with bundled TeX fonts.
 - **🎨 Code Syntax Highlighting**: Automatic language detection, line numbers, and one-click copy button with clipboard feedback.
@@ -122,6 +123,7 @@ mdviewer/
 │       │   ├── TOCParser.swift      # Regex/AST heading extractor & statistics calculator
 │       │   └── Exporter.swift       # PDF export & HTML clipboard service
 │       ├── Views/
+│       │   ├── DocumentTabBarView.swift    # Tactile elevated card tabs with close buttons & (+) action
 │       │   ├── ContentViewController.swift # WKWebView container & in-page search bar
 │       │   ├── SidebarViewController.swift # NSTableView outline & stats footer card
 │       │   ├── DroppableContainerView.swift# Window-level drag & drop with HUD overlay

@@ -5,7 +5,6 @@ public final class SidebarViewController: NSViewController, NSTableViewDataSourc
     private var headerContainer: NSStackView!
     private var headerTopConstraint: NSLayoutConstraint!
     private var filterField: NSSearchField!
-    private var countBadge: NSTextField!
     private var scrollView: NSScrollView!
     private var tableView: NSTableView!
     private var emptyLabel: NSTextField!
@@ -19,7 +18,7 @@ public final class SidebarViewController: NSViewController, NSTableViewDataSourc
     private var readTimeLabel: NSTextField!
     private var modifiedLabel: NSTextField!
 
-    public let documentState: DocumentState
+    public private(set) var documentState: DocumentState
 
     private var allHeadings: [HeadingItem] = []
     private var filteredHeadings: [HeadingItem] = []
@@ -87,7 +86,7 @@ public final class SidebarViewController: NSViewController, NSTableViewDataSourc
         headerContainer.spacing = 8
         headerContainer.translatesAutoresizingMaskIntoConstraints = false
 
-        // Row 1: Title & Badge
+        // Row 1: Title
         let titleRow = NSStackView()
         titleRow.orientation = .horizontal
         titleRow.alignment = .centerY
@@ -98,23 +97,7 @@ public final class SidebarViewController: NSViewController, NSTableViewDataSourc
         titleLabel.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        countBadge = NSTextField(labelWithString: "0")
-        countBadge.font = NSFont.systemFont(ofSize: 10, weight: .bold)
-        countBadge.textColor = .secondaryLabelColor
-        countBadge.alignment = .center
-        countBadge.wantsLayer = true
-        countBadge.layer?.backgroundColor = NSColor.secondaryLabelColor.withAlphaComponent(0.15).cgColor
-        countBadge.layer?.cornerRadius = 8
-        countBadge.translatesAutoresizingMaskIntoConstraints = false
-        countBadge.isHidden = true
-
-        let spacer = NSView()
-        spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        spacer.translatesAutoresizingMaskIntoConstraints = false
-
         titleRow.addArrangedSubview(titleLabel)
-        titleRow.addArrangedSubview(spacer)
-        titleRow.addArrangedSubview(countBadge)
 
         // Row 2: Filter Field
         filterField = NSSearchField()
@@ -279,6 +262,14 @@ public final class SidebarViewController: NSViewController, NSTableViewDataSourc
         ])
     }
 
+    public func setDocumentState(_ newState: DocumentState) {
+        self.documentState = newState
+        setupBindings()
+        self.allHeadings = newState.headings
+        self.applyFilter()
+        self.updateStatsUI()
+    }
+
     private func setupBindings() {
         documentState.onHeadingsUpdated = { [weak self] headings in
             self?.allHeadings = headings
@@ -299,8 +290,6 @@ public final class SidebarViewController: NSViewController, NSTableViewDataSourc
             }
         }
 
-        countBadge.stringValue = "\(allHeadings.count)"
-        countBadge.isHidden = allHeadings.isEmpty
         filterField.isHidden = allHeadings.count < 5
         emptyLabel.isHidden = !filteredHeadings.isEmpty
 

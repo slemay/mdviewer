@@ -5,14 +5,33 @@ public final class MainWindowController: NSWindowController, NSToolbarDelegate, 
     public static let windowAutosaveName = "MDViewerMainWindow"
     private var isSetupComplete = false
 
-    public let documentState: DocumentState
+    // Tabs Model
+    public private(set) var tabs: [DocumentTab] = []
+    public private(set) var activeTabIndex: Int = 0
+
+    public var activeTab: DocumentTab? {
+        guard activeTabIndex >= 0, activeTabIndex < tabs.count else { return nil }
+        return tabs[activeTabIndex]
+    }
+
+    public var documentState: DocumentState {
+        activeTab?.documentState ?? defaultState
+    }
+    private let defaultState: DocumentState
+
+    // View Hierarchy
     private var splitVC: NSSplitViewController!
     private var sidebarVC: SidebarViewController!
+    private var contentContainerVC: NSViewController!
+    private var tabBarView: DocumentTabBarView!
     private var contentVC: ContentViewController!
     private var sidebarSplitItem: NSSplitViewItem!
 
     public init(documentState: DocumentState) {
-        self.documentState = documentState
+        self.defaultState = documentState
+        let initialTab = DocumentTab(documentState: documentState)
+        self.tabs = [initialTab]
+        self.activeTabIndex = 0
 
         let window = NSWindow(
             contentRect: NSRect(x: 120, y: 120, width: 1060, height: 740),
@@ -27,13 +46,13 @@ public final class MainWindowController: NSWindowController, NSToolbarDelegate, 
         window.isReleasedWhenClosed = false
         window.toolbarStyle = .unified
 
-        // Enable native macOS window tabbing
-        window.tabbingMode = .preferred
-        window.tabbingIdentifier = "MDViewerDocumentWindow"
+        // We use our dedicated DocumentTabBarView for rich tactile tabs
+        window.tabbingMode = .disallowed
 
         setupSplitView()
         setupToolbar()
         setupStateObservers()
+        observeTabMetadata(tab: initialTab)
 
         // Restore window frame & position AFTER all view controllers are mounted
         let restored = window.setFrameUsingName(Self.windowAutosaveName)
@@ -53,10 +72,6 @@ public final class MainWindowController: NSWindowController, NSToolbarDelegate, 
         fatalError("init(coder:) has not been implemented")
     }
 
-    public override func newWindowForTab(_ sender: Any?) {
-        WindowManager.shared.createNewWindow(asTab: true)
-    }
-
     private func setupSplitView() {
         splitVC = NSSplitViewController()
 
@@ -67,12 +82,59 @@ public final class MainWindowController: NSWindowController, NSToolbarDelegate, 
         sidebarSplitItem.allowsFullHeightLayout = true
 
         contentVC = ContentViewController(documentState: documentState)
-        let contentItem = NSSplitViewItem(viewController: contentVC)
 
+        setupTabBar()
+
+        contentContainerVC = NSViewController()
+        let containerView = NSView()
+        contentContainerVC.view = containerView
+        contentContainerVC.addChild(contentVC)
+
+        tabBarView.translatesAutoresizingMaskIntoConstraints = false
+        contentVC.view.translatesAutoresizingMaskIntoConstraints = false
+
+        containerView.addSubview(tabBarView)
+        containerView.addSubview(contentVC.view)
+
+        NSLayoutConstraint.activate([
+            tabBarView.topAnchor.constraint(equalTo: containerView.topAnchor),
+            tabBarView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+            tabBarView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
+            tabBarView.heightAnchor.constraint(equalToConstant: 36),
+
+            contentVC.view.topAnchor.constraint(equalTo: tabBarView.bottomAnchor),
+            contentVC.view.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+            contentVC.view.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
+            contentVC.view.bottomAnchor.constraint(equalTo: containerView.bottomAnchor)
+        ])
+
+        let contentItem = NSSplitViewItem(viewController: contentContainerVC)
         splitVC.addSplitViewItem(sidebarSplitItem)
         splitVC.addSplitViewItem(contentItem)
 
         window?.contentViewController = splitVC
+    }
+
+    private func setupTabBar() {
+        tabBarView = DocumentTabBarView(frame: .zero)
+
+        tabBarView.onSelectTab = { [weak self] index in
+            self?.switchToTab(index: index)
+        }
+
+        tabBarView.onCloseTab = { [weak self] index in
+            self?.closeTab(at: index)
+        }
+
+        tabBarView.onNewTab = { [weak self] in
+            self?.newDocumentTabAction()
+        }
+
+        tabBarView.onFileDropped = { [weak self] url in
+            self?.openFileInNewTab(url: url)
+        }
+
+        tabBarView.reload(tabs: tabs, activeIndex: activeTabIndex)
     }
 
     private func setupToolbar() {
@@ -86,18 +148,94 @@ public final class MainWindowController: NSWindowController, NSToolbarDelegate, 
     }
 
     private func setupStateObservers() {
-        documentState.onMetadataChanged = { [weak self] fileName, fileURL in
-            guard let self = self, let win = self.window else { return }
-            win.title = fileName
-            win.representedURL = fileURL
-            if let path = fileURL?.path {
-                win.subtitle = path
+        updateWindowMetadata()
+    }
+
+    private func observeTabMetadata(tab: DocumentTab) {
+        tab.documentState.onMetadataChanged = { [weak self, weak tab] fileName, fileURL in
+            guard let self = self, let tab = tab else { return }
+            self.tabBarView.reload(tabs: self.tabs, activeIndex: self.activeTabIndex)
+            if tab === self.activeTab {
+                self.updateWindowMetadata()
             }
         }
     }
 
+    private func updateWindowMetadata() {
+        guard let win = window else { return }
+        let state = documentState
+        win.title = state.fileName
+        win.representedURL = state.fileURL
+        if let path = state.fileURL?.path {
+            win.subtitle = path
+        } else {
+            win.subtitle = ""
+        }
+    }
+
+    // MARK: - Tab Management
+    public func switchToTab(index: Int) {
+        guard index >= 0, index < tabs.count else { return }
+        activeTabIndex = index
+        let tab = tabs[index]
+
+        sidebarVC.setDocumentState(tab.documentState)
+        contentVC.setDocumentState(tab.documentState)
+
+        tabBarView.reload(tabs: tabs, activeIndex: activeTabIndex)
+        updateWindowMetadata()
+    }
+
+    public func closeTab(at index: Int) {
+        guard index >= 0, index < tabs.count else { return }
+        let closingTab = tabs[index]
+        closingTab.documentState.stopWatching()
+        tabs.remove(at: index)
+
+        if tabs.isEmpty {
+            // If last tab closed, reset to a fresh empty tab
+            let newTab = DocumentTab()
+            observeTabMetadata(tab: newTab)
+            tabs = [newTab]
+            activeTabIndex = 0
+            switchToTab(index: 0)
+        } else {
+            if activeTabIndex >= tabs.count {
+                activeTabIndex = tabs.count - 1
+            } else if activeTabIndex > index {
+                activeTabIndex -= 1
+            }
+            switchToTab(index: activeTabIndex)
+        }
+    }
+
+    public func openFileInNewTab(url: URL) {
+        let effective = DragDropHelper.resolveEffectiveURL(for: url)
+
+        // Check if file is already open in this window
+        if let existingIdx = tabs.firstIndex(where: { $0.documentState.fileURL?.standardizedFileURL == effective.standardizedFileURL }) {
+            switchToTab(index: existingIdx)
+            return
+        }
+
+        // If current active tab is untitled and empty, reuse it
+        if let active = activeTab, active.documentState.fileURL == nil, active.documentState.rawContent.isEmpty {
+            active.documentState.openFile(url: effective)
+            tabBarView.reload(tabs: tabs, activeIndex: activeTabIndex)
+            updateWindowMetadata()
+            return
+        }
+
+        let newTab = DocumentTab()
+        observeTabMetadata(tab: newTab)
+        tabs.append(newTab)
+        newTab.documentState.openFile(url: effective)
+        switchToTab(index: tabs.count - 1)
+    }
+
     // MARK: - NSToolbarDelegate
     private let toggleSidebarId = NSToolbarItem.Identifier("ToggleSidebar")
+    private let newTabId = NSToolbarItem.Identifier("NewTab")
     private let openFileId = NSToolbarItem.Identifier("OpenFile")
     private let reloadFileId = NSToolbarItem.Identifier("ReloadFile")
     private let typographyId = NSToolbarItem.Identifier("Typography")
@@ -109,6 +247,7 @@ public final class MainWindowController: NSWindowController, NSToolbarDelegate, 
     public func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         return [
             .toggleSidebar,
+            newTabId,
             openFileId,
             reloadFileId,
             .flexibleSpace,
@@ -123,6 +262,7 @@ public final class MainWindowController: NSWindowController, NSToolbarDelegate, 
     public func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         return [
             .toggleSidebar,
+            newTabId,
             openFileId,
             reloadFileId,
             .flexibleSpace,
@@ -138,6 +278,17 @@ public final class MainWindowController: NSWindowController, NSToolbarDelegate, 
         switch itemIdentifier {
         case .toggleSidebar:
             return nil
+
+        case newTabId:
+            let item = NSToolbarItem(itemIdentifier: itemIdentifier)
+            item.label = "New Tab"
+            item.paletteLabel = "New Tab / Open File"
+            item.toolTip = "Open Markdown Document in New Tab (Cmd+T)"
+            let plusImg = NSImage(systemSymbolName: "plus", accessibilityDescription: "New Tab")
+            item.image = plusImg
+            item.target = self
+            item.action = #selector(newDocumentTabAction)
+            return item
 
         case openFileId:
             let item = NSToolbarItem(itemIdentifier: itemIdentifier)
@@ -219,12 +370,10 @@ public final class MainWindowController: NSWindowController, NSToolbarDelegate, 
             item.toolTip = "Export and Share Options"
             item.image = NSImage(systemSymbolName: "square.and.arrow.up", accessibilityDescription: "Export")
 
-            let menu = NSMenu()
+            let menu = NSMenu(title: "Export")
             let pdfItem = NSMenuItem(title: "Save as PDF...", action: #selector(exportPDFAction), keyEquivalent: "p")
             pdfItem.target = self
             menu.addItem(pdfItem)
-
-            menu.addItem(.separator())
 
             let htmlItem = NSMenuItem(title: "Copy Rendered HTML", action: #selector(copyHTMLAction), keyEquivalent: "C")
             htmlItem.keyEquivalentModifierMask = [.command, .shift]
@@ -244,22 +393,20 @@ public final class MainWindowController: NSWindowController, NSToolbarDelegate, 
     }
 
     // MARK: - Actions
-    @objc public func openDocumentAction() {
+    @objc public func newDocumentTabAction() {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.text, .plainText]
         panel.allowsOtherFileTypes = true
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
         panel.canChooseFiles = true
+        panel.prompt = "Open"
+        panel.message = "Choose a Markdown file to open in a new tab"
 
         let handler: (NSApplication.ModalResponse) -> Void = { [weak self] response in
             guard response == .OK, let self = self else { return }
-            for (idx, url) in panel.urls.enumerated() {
-                if idx == 0 && self.documentState.fileURL == nil {
-                    self.documentState.openFile(url: url)
-                } else {
-                    WindowManager.shared.openFile(url: url, inNewTab: true)
-                }
+            for url in panel.urls {
+                self.openFileInNewTab(url: url)
             }
         }
 
@@ -268,6 +415,10 @@ public final class MainWindowController: NSWindowController, NSToolbarDelegate, 
         } else if panel.runModal() == .OK {
             handler(.OK)
         }
+    }
+
+    @objc public func openDocumentAction() {
+        newDocumentTabAction()
     }
 
     @objc public func reloadDocumentAction() {
@@ -328,7 +479,9 @@ public final class MainWindowController: NSWindowController, NSToolbarDelegate, 
     public func windowWillClose(_ notification: Notification) {
         guard isSetupComplete else { return }
         window?.saveFrame(usingName: Self.windowAutosaveName)
-        documentState.stopWatching()
+        for tab in tabs {
+            tab.documentState.stopWatching()
+        }
         WindowManager.shared.removeWindowController(self)
     }
 }

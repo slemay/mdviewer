@@ -11,7 +11,7 @@ public final class ContentViewController: NSViewController, WKNavigationDelegate
     private var nextSearchButton: NSButton!
     private var closeSearchButton: NSButton!
 
-    public let documentState: DocumentState
+    public private(set) var documentState: DocumentState
 
     private var isIndexLoaded = false
     private var pendingRender: (content: String, preserveScroll: Bool)?
@@ -135,6 +135,18 @@ public final class ContentViewController: NSViewController, WKNavigationDelegate
             closeSearchButton.trailingAnchor.constraint(equalTo: searchOverlay.trailingAnchor, constant: -8),
             closeSearchButton.centerYAnchor.constraint(equalTo: searchOverlay.centerYAnchor)
         ])
+    }
+
+    public func setDocumentState(_ newState: DocumentState) {
+        self.documentState = newState
+        setupBindings()
+        applyTheme(newState.theme)
+        applyFont(fontFamily: newState.fontFamily, fontSize: newState.fontSize)
+        if !newState.rawContent.isEmpty {
+            renderMarkdown(content: newState.rawContent, preserveScroll: false)
+        } else {
+            renderMarkdown(content: "", preserveScroll: false)
+        }
     }
 
     private func setupBindings() {

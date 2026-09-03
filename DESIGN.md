@@ -124,29 +124,34 @@ graph TD
   - `application(_:openFile:)`, `application(_:open:)`, and `application(_:openFiles:)`: Intercepts double-clicks from Finder, "Open With" launches, and files dragged to the Dock icon or `.app` bundle, routing multiple files into native tabs.
   - `applicationShouldTerminateAfterLastWindowClosed`: Returns `true` to ensure the process gracefully exits when its last window is closed.
 
-### 4.2 Window Controller, Native Tabbing & Layout Hierarchy
-- **Source File:** [`MainWindowController.swift`](file:///Users/slemay/Work/mdviewer/Sources/MDViewer/Controllers/MainWindowController.swift)
-- **Window Specs & Native Tabbing:**
+### 4.2 Window Controller, Document Tab Bar & Layout Hierarchy
+- **Source Files:** [`MainWindowController.swift`](file:///Users/slemay/Work/mdviewer/Sources/MDViewer/Controllers/MainWindowController.swift), [`DocumentTabBarView.swift`](file:///Users/slemay/Work/mdviewer/Sources/MDViewer/Views/DocumentTabBarView.swift)
+- **Window Specs & Tab Architecture:**
   - `styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]`
   - `toolbarStyle = .unified`: Merges the window title bar and toolbar into a modern single header.
-  - `window.tabbingMode = .preferred`: Integrates directly into macOS Sierra+ native window tabbing system.
-  - `window.tabbingIdentifier = "MDViewerDocumentWindow"`: Groups all document windows into the same unified tab bar.
-  - `override func newWindowForTab(_ sender: Any?)`: Implements the standard AppKit responder method, enabling the native `+` button in the macOS tab bar.
-  - Standard responder-chain menu commands for `selectPreviousTab:`, `selectNextTab:`, `moveTabToNewWindow:`, `mergeAllWindows:`, and `toggleTabBar:`.
+  - **Always-Visible Document Tab Bar (`DocumentTabBarView`):**
+    - Pinned across the top of the content area at height `36pt`, displaying tabs even when only a single document is open or in an untitled state.
+    - **Authentic Tab Appearance (`DocumentTabItemView`):**
+      - Elevated active card styling (`controlBackgroundColor`, `cornerRadius: 7`, top-rounded `maskedCorners`, `1pt` border, subtle drop shadow).
+      - Prominent active color indicator bar (`2.5pt` height in `controlAccentColor`) across the top edge.
+      - Document icon (`doc.text.fill` for active, `doc.text` for inactive), title with file path tooltip, and interactive close (`✕`) button.
+      - Inactive tabs rendered with subtle hover states and vertical divider lines.
+    - Integrated `(+)` Plus Button in the tab bar and toolbar header to open or create new markdown documents at all times.
+    - Drag & drop support directly on the tab bar to open dropped files as new tabs.
 - **Split View Layout:**
   - Implemented using AppKit’s `NSSplitViewController`.
   - `sidebarSplitItem`: Anchored on the left, with `minimumThickness = 190pt`, `maximumThickness = 320pt`, and `allowsFullHeightLayout = true` to extend behind the titlebar.
-  - `contentItem`: Flexible right-hand pane hosting `ContentViewController`.
-- **Traffic Light Clearance & Full-Height Sidebar:**
-  - Because `allowsFullHeightLayout = true` extends the sidebar view all the way to the top window edge (`y = 0`), the header container is constrained to `topAnchor + 52pt` in windowed mode.
-  - `SidebarViewController` observes `NSWindow.didEnterFullScreenNotification` and `NSWindow.didExitFullScreenNotification`, automatically adjusting top padding between `52pt` (windowed) and `16pt` (fullscreen) so the window controls never overlap the "Outline" header.
+  - `contentItem`: Flexible right-hand pane hosting `contentContainerVC` (`tabBarView` on top, `contentVC` below).
+- **Traffic Light Clearance & Clean Outline Sidebar:**
+  - The outline sidebar features a clean "Outline" header without section count badges.
+  - `SidebarViewController` observes `NSWindow.didEnterFullScreenNotification` and `NSWindow.didExitFullScreenNotification`, automatically adjusting top padding between `52pt` (windowed) and `16pt` (fullscreen) so the window controls never overlap the header.
 - **Window Frame & Layout Persistence:**
   - Window frame restoration uses `window.setFrameUsingName("MDViewerMainWindow")` called strictly *after* mounting all view controllers and split view items to prevent intermediate layout passes from clobbering coordinates.
   - Implements `NSWindowDelegate` (`windowDidMove`, `windowDidResize`, `windowWillClose`) guarded by `isSetupComplete` so user adjustments are immediately committed to `UserDefaults` without saving temporary initialization geometries.
   - Sidebar layout is managed natively by `NSSplitViewController` without fixed subview overriding.
-  - `SidebarViewController` utilizes a dedicated `HeadingTableCellView` with explicit Auto Layout indentation constraints, `SidebarDropView` for drop handling without HUD overlay collisions, and immediate state binding on `viewDidLoad` to guarantee instant outline display.
 - **Unified Toolbar Items:**
   - `toggleSidebar`: Built-in animated sidebar collapser.
+  - `newTab`: Direct `(+)` action in the header to open or create markdown documents at all times.
   - `openFile`: Triggers `NSOpenPanel` supporting multiple file selection (opened as tabs).
   - `reloadFile`: Instant manual refresh (`Cmd + R`).
   - `typography`: `NSPopUpButton` for Sans (SF Pro), Serif (New York), Monospace (SF Mono).
