@@ -94,17 +94,17 @@ public final class AboutWindowController: NSWindowController {
         ackTab.label = "Acknowledgments"
         let ackView = NSView()
 
-        let scroll = NSScrollView()
-        scroll.hasVerticalScroller = true
+        let scroll = NSTextView.scrollableTextView()
         scroll.drawsBackground = false
         scroll.translatesAutoresizingMaskIntoConstraints = false
 
-        let textView = NSTextView()
+        let textView = scroll.documentView as! NSTextView
         textView.isEditable = false
         textView.isSelectable = true
-        textView.font = .systemFont(ofSize: 10.5)
+        textView.drawsBackground = false
+        textView.textColor = .labelColor
+        textView.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
         textView.string = Self.licensesText
-        scroll.documentView = textView
 
         ackView.addSubview(scroll)
         NSLayoutConstraint.activate([
