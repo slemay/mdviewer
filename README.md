@@ -141,3 +141,11 @@ mdviewer/
 │           ├── app.js               # Marked.js + KaTeX + Prism + Mermaid JS bridge
 │           └── vendor/              # Bundled offline JS, CSS, and KaTeX fonts
 ```
+
+---
+
+## 🔒 Privacy & Support
+
+- **Privacy Policy:** [PRIVACY.md](PRIVACY.md) &bull; [Web Version](https://slemay.github.io/mdviewer/privacy.html)
+- **Support & FAQ:** [SUPPORT.md](SUPPORT.md) &bull; [Web Version](https://slemay.github.io/mdviewer/support.html)
+- **Issue Tracker:** [GitHub Issues](https://github.com/slemay/mdviewer/issues)

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MDViewer - Native macOS Markdown Viewer</title>
+    <style>
+        :root {
+            --bg: #ffffff;
+            --text: #1d1d1f;
+            --secondary: #6e6e73;
+            --card-bg: #f5f5f7;
+            --border: #d2d2d7;
+            --accent: #0071e3;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1e1e1e;
+                --text: #f5f5f7;
+                --secondary: #86868b;
+                --card-bg: #2d2d2d;
+                --border: #424245;
+                --accent: #2997ff;
+            }
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            margin: 0;
+            padding: 60px 20px 40px;
+        }
+        .container {
+            max-width: 720px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        .icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 18px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+            margin-bottom: 20px;
+        }
+        h1 {
+            font-size: 34px;
+            font-weight: 700;
+            margin: 0 0 10px;
+        }
+        .tagline {
+            font-size: 19px;
+            color: var(--secondary);
+            margin: 0 0 32px;
+        }
+        .links-row {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 48px;
+        }
+        .btn {
+            display: inline-block;
+            background-color: var(--accent);
+            color: white;
+            padding: 10px 22px;
+            border-radius: 980px;
+            text-decoration: none;
+            font-size: 15px;
+            font-weight: 500;
+        }
+        .btn-secondary {
+            background-color: var(--card-bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            text-align: left;
+            margin-top: 30px;
+        }
+        .feature-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .feature-card h3 {
+            margin: 0 0 6px;
+            font-size: 16px;
+        }
+        .feature-card p {
+            margin: 0;
+            font-size: 14px;
+            color: var(--secondary);
+        }
+        footer {
+            margin-top: 60px;
+            font-size: 13px;
+            color: var(--secondary);
+        }
+        footer a {
+            color: var(--secondary);
+            text-decoration: underline;
+            margin: 0 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>MDViewer</h1>
+        <p class="tagline">Ultra-fast, native Markdown reader and live previewer for macOS.</p>
+
+        <div class="links-row">
+            <a href="https://github.com/slemay/mdviewer" class="btn">View on GitHub</a>
+            <a href="support.html" class="btn btn-secondary">Support & FAQ</a>
+            <a href="privacy.html" class="btn btn-secondary">Privacy Policy</a>
+        </div>
+
+        <div class="feature-grid">
+            <div class="feature-card">
+                <h3>⚡️ Instant Live Sync</h3>
+                <p>Monitors files via kernel events with zero flicker and exact scroll preservation.</p>
+            </div>
+            <div class="feature-card">
+                <h3>🗂 Multi-Tab Workflows</h3>
+                <p>Always-visible elevated card tabs with active color indicator bar and shortcuts.</p>
+            </div>
+            <div class="feature-card">
+                <h3>🧮 KaTeX Math & Diagrams</h3>
+                <p>Full inline and block LaTeX rendering alongside native Mermaid.js flowcharts.</p>
+            </div>
+            <div class="feature-card">
+                <h3>🔒 100% Offline & Private</h3>
+                <p>Zero telemetry, zero tracking, zero accounts. Operates in macOS App Sandbox.</p>
+            </div>
+        </div>
+
+        <footer>
+            <a href="privacy.html">Privacy Policy</a> &bull; 
+            <a href="support.html">Support</a> &bull; 
+            <a href="https://github.com/slemay/mdviewer">GitHub</a>
+            <p style="margin-top: 12px;">&copy; 2026 MDViewer. Built with Swift & AppKit for macOS.</p>
+        </footer>
+    </div>
+</body>
+</html>
