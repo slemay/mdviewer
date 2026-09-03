@@ -112,18 +112,27 @@ graph TD
 ## 4. Component Deep Dive
 
 ### 4.1 Application Lifecycle & Menu System
-- **Source Files:** [`main.swift`](file:///Users/slemay/Work/mdviewer/Sources/MDViewer/App/main.swift), [`AppDelegate.swift`](file:///Users/slemay/Work/mdviewer/Sources/MDViewer/App/AppDelegate.swift)
-- **Role:** Coordinates application bootstrap, sets `.regular` activation policy (dock icon visible), and builds the macOS main menu hierarchy.
+- **Source Files:** [`main.swift`](file:///Users/slemay/Work/mdviewer/Sources/MDViewer/App/main.swift), [`AppDelegate.swift`](file:///Users/slemay/Work/mdviewer/Sources/MDViewer/App/AppDelegate.swift), [`WindowManager.swift`](file:///Users/slemay/Work/mdviewer/Sources/MDViewer/Services/WindowManager.swift)
+- **Role:** Coordinates application bootstrap, sets `.regular` activation policy (dock icon visible), manages macOS main menus via responder chain, and manages the multi-window/multi-tab lifecycle via `WindowManager`.
+- **Window & Tab Management (`WindowManager`):**
+  - Tracks all open `MainWindowController` instances in `windowControllers`.
+  - Dynamically resolves `activeWindowController` and `activeDocumentState`.
+  - Intelligently routes file openings: focuses existing window if already open, reuses empty windows, or opens new files in tabs (`Cmd + T`) or independent windows (`Cmd + N`).
+  - Manages cascading window origins and window close cleanup.
 - **CLI, Dock & Finder Routing:**
   - `applicationDidFinishLaunching`: Inspects `CommandLine.arguments` for file paths passed from terminal (e.g. `mdviewer path/to/doc.md`) and sets `NSApplication.shared.applicationIconImage`.
-  - `application(_:openFile:)`, `application(_:open:)`, and `application(_:openFiles:)`: Intercepts double-clicks from Finder, "Open With" launches, and files dragged to the Dock icon or `.app` bundle, bringing the window to the front and activating the application.
-  - `applicationShouldTerminateAfterLastWindowClosed`: Returns `true` to ensure the process gracefully exits when its window is closed.
+  - `application(_:openFile:)`, `application(_:open:)`, and `application(_:openFiles:)`: Intercepts double-clicks from Finder, "Open With" launches, and files dragged to the Dock icon or `.app` bundle, routing multiple files into native tabs.
+  - `applicationShouldTerminateAfterLastWindowClosed`: Returns `true` to ensure the process gracefully exits when its last window is closed.
 
-### 4.2 Window Controller & Layout Hierarchy (Traffic Light Clearance)
+### 4.2 Window Controller, Native Tabbing & Layout Hierarchy
 - **Source File:** [`MainWindowController.swift`](file:///Users/slemay/Work/mdviewer/Sources/MDViewer/Controllers/MainWindowController.swift)
-- **Window Specs:**
+- **Window Specs & Native Tabbing:**
   - `styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]`
   - `toolbarStyle = .unified`: Merges the window title bar and toolbar into a modern single header.
+  - `window.tabbingMode = .preferred`: Integrates directly into macOS Sierra+ native window tabbing system.
+  - `window.tabbingIdentifier = "MDViewerDocumentWindow"`: Groups all document windows into the same unified tab bar.
+  - `override func newWindowForTab(_ sender: Any?)`: Implements the standard AppKit responder method, enabling the native `+` button in the macOS tab bar.
+  - Standard responder-chain menu commands for `selectPreviousTab:`, `selectNextTab:`, `moveTabToNewWindow:`, `mergeAllWindows:`, and `toggleTabBar:`.
 - **Split View Layout:**
   - Implemented using AppKit’s `NSSplitViewController`.
   - `sidebarSplitItem`: Anchored on the left, with `minimumThickness = 190pt`, `maximumThickness = 320pt`, and `allowsFullHeightLayout = true` to extend behind the titlebar.
@@ -138,7 +147,7 @@ graph TD
   - `SidebarViewController` utilizes a dedicated `HeadingTableCellView` with explicit Auto Layout indentation constraints, `SidebarDropView` for drop handling without HUD overlay collisions, and immediate state binding on `viewDidLoad` to guarantee instant outline display.
 - **Unified Toolbar Items:**
   - `toggleSidebar`: Built-in animated sidebar collapser.
-  - `openFile`: Triggers `NSOpenPanel` restricted to text/markdown formats.
+  - `openFile`: Triggers `NSOpenPanel` supporting multiple file selection (opened as tabs).
   - `reloadFile`: Instant manual refresh (`Cmd + R`).
   - `typography`: `NSPopUpButton` for Sans (SF Pro), Serif (New York), Monospace (SF Mono).
   - `fontSize`: Segmented control for incrementing/decrementing font scale (`Cmd +`, `Cmd -`, `Cmd 0`).
@@ -148,7 +157,8 @@ graph TD
 
 ### 4.3 Document State & Concurrency Model
 - **Source File:** [`DocumentState.swift`](file:///Users/slemay/Work/mdviewer/Sources/MDViewer/Models/DocumentState.swift)
-- **Isolation:** Decorated with `@MainActor` to guarantee UI thread safety.
+- **Isolation:** Decorated with `@MainActor` to guarantee UI thread safety. Each window/tab controller owns its own independent `DocumentState` instance, guaranteeing that open files, scroll positions, search states, and kernel watchers never collide across tabs.
+- **Global Resolver:** Provides a dynamic `DocumentState.shared` accessor routing to `WindowManager.shared.activeDocumentState` with fallback support for backward compatibility.
 - **State Fields:**
   - `fileURL: URL?`: Physical path of the currently open document.
   - `rawContent: String`: In-memory UTF-8 markdown string.

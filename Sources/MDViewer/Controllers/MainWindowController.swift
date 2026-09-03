@@ -5,12 +5,15 @@ public final class MainWindowController: NSWindowController, NSToolbarDelegate, 
     public static let windowAutosaveName = "MDViewerMainWindow"
     private var isSetupComplete = false
 
+    public let documentState: DocumentState
     private var splitVC: NSSplitViewController!
     private var sidebarVC: SidebarViewController!
     private var contentVC: ContentViewController!
     private var sidebarSplitItem: NSSplitViewItem!
 
-    public init() {
+    public init(documentState: DocumentState) {
+        self.documentState = documentState
+
         let window = NSWindow(
             contentRect: NSRect(x: 120, y: 120, width: 1060, height: 740),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
@@ -23,6 +26,10 @@ public final class MainWindowController: NSWindowController, NSToolbarDelegate, 
         window.minSize = NSSize(width: 650, height: 450)
         window.isReleasedWhenClosed = false
         window.toolbarStyle = .unified
+
+        // Enable native macOS window tabbing
+        window.tabbingMode = .preferred
+        window.tabbingIdentifier = "MDViewerDocumentWindow"
 
         setupSplitView()
         setupToolbar()
@@ -38,20 +45,28 @@ public final class MainWindowController: NSWindowController, NSToolbarDelegate, 
         isSetupComplete = true
     }
 
+    public convenience init() {
+        self.init(documentState: DocumentState())
+    }
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    public override func newWindowForTab(_ sender: Any?) {
+        WindowManager.shared.createNewWindow(asTab: true)
     }
 
     private func setupSplitView() {
         splitVC = NSSplitViewController()
 
-        sidebarVC = SidebarViewController()
+        sidebarVC = SidebarViewController(documentState: documentState)
         sidebarSplitItem = NSSplitViewItem(sidebarWithViewController: sidebarVC)
         sidebarSplitItem.minimumThickness = 190
         sidebarSplitItem.maximumThickness = 320
         sidebarSplitItem.allowsFullHeightLayout = true
 
-        contentVC = ContentViewController()
+        contentVC = ContentViewController(documentState: documentState)
         let contentItem = NSSplitViewItem(viewController: contentVC)
 
         splitVC.addSplitViewItem(sidebarSplitItem)
@@ -71,9 +86,7 @@ public final class MainWindowController: NSWindowController, NSToolbarDelegate, 
     }
 
     private func setupStateObservers() {
-        let state = DocumentState.shared
-
-        state.onMetadataChanged = { [weak self] fileName, fileURL in
+        documentState.onMetadataChanged = { [weak self] fileName, fileURL in
             guard let self = self, let win = self.window else { return }
             win.title = fileName
             win.representedURL = fileURL
@@ -235,42 +248,49 @@ public final class MainWindowController: NSWindowController, NSToolbarDelegate, 
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.text, .plainText]
         panel.allowsOtherFileTypes = true
-        panel.allowsMultipleSelection = false
+        panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
         panel.canChooseFiles = true
 
-        if let win = window {
-            panel.beginSheetModal(for: win) { response in
-                if response == .OK, let url = panel.url {
-                    DocumentState.shared.openFile(url: url)
+        let handler: (NSApplication.ModalResponse) -> Void = { [weak self] response in
+            guard response == .OK, let self = self else { return }
+            for (idx, url) in panel.urls.enumerated() {
+                if idx == 0 && self.documentState.fileURL == nil {
+                    self.documentState.openFile(url: url)
+                } else {
+                    WindowManager.shared.openFile(url: url, inNewTab: true)
                 }
             }
-        } else if panel.runModal() == .OK, let url = panel.url {
-            DocumentState.shared.openFile(url: url)
+        }
+
+        if let win = window {
+            panel.beginSheetModal(for: win, completionHandler: handler)
+        } else if panel.runModal() == .OK {
+            handler(.OK)
         }
     }
 
     @objc public func reloadDocumentAction() {
-        DocumentState.shared.reloadCurrentFile(preserveScroll: true)
+        documentState.reloadCurrentFile(preserveScroll: true)
     }
 
     @objc private func fontFamilySelected(_ sender: NSMenuItem) {
         if let font = sender.representedObject as? AppFontFamily {
-            DocumentState.shared.fontFamily = font
+            documentState.fontFamily = font
         }
     }
 
     @objc private func fontSizeChanged(_ sender: NSSegmentedControl) {
         if sender.selectedSegment == 0 {
-            DocumentState.shared.zoomOut()
+            documentState.zoomOut()
         } else {
-            DocumentState.shared.zoomIn()
+            documentState.zoomIn()
         }
     }
 
     @objc private func themeSelected(_ sender: NSMenuItem) {
         if let theme = sender.representedObject as? AppTheme {
-            DocumentState.shared.theme = theme
+            documentState.theme = theme
         }
     }
 
@@ -280,7 +300,7 @@ public final class MainWindowController: NSWindowController, NSToolbarDelegate, 
 
     @objc public func exportPDFAction() {
         guard let webView = contentVC.webView else { return }
-        Exporter.savePDFDirectly(webView: webView, suggestedFileName: DocumentState.shared.fileName)
+        Exporter.savePDFDirectly(webView: webView, suggestedFileName: documentState.fileName)
     }
 
     @objc public func copyHTMLAction() {
@@ -291,7 +311,7 @@ public final class MainWindowController: NSWindowController, NSToolbarDelegate, 
     @objc public func copyMarkdownAction() {
         let pb = NSPasteboard.general
         pb.clearContents()
-        pb.setString(DocumentState.shared.rawContent, forType: .string)
+        pb.setString(documentState.rawContent, forType: .string)
     }
 
     // MARK: - NSWindowDelegate
@@ -308,5 +328,7 @@ public final class MainWindowController: NSWindowController, NSToolbarDelegate, 
     public func windowWillClose(_ notification: Notification) {
         guard isSetupComplete else { return }
         window?.saveFrame(usingName: Self.windowAutosaveName)
+        documentState.stopWatching()
+        WindowManager.shared.removeWindowController(self)
     }
 }

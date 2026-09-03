@@ -3,7 +3,10 @@ import AppKit
 @MainActor
 public final class AppDelegate: NSObject, NSApplicationDelegate {
     public static private(set) var shared: AppDelegate?
-    public private(set) var mainWindowController: MainWindowController?
+
+    public var mainWindowController: MainWindowController? {
+        WindowManager.shared.activeWindowController
+    }
 
     public override init() {
         super.init()
@@ -19,52 +22,46 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
 
         setupMainMenu()
 
-        let windowController = MainWindowController()
-        self.mainWindowController = windowController
-        windowController.showWindow(nil)
-        windowController.window?.makeKeyAndOrderFront(nil)
-
-        // Process any CLI argument paths
+        // Check CLI argument paths
+        var openedCLIFile = false
         let args = CommandLine.arguments.dropFirst()
         for arg in args {
             if !arg.hasPrefix("-") {
                 let expanded = NSString(string: arg).expandingTildeInPath
                 let url = URL(fileURLWithPath: expanded)
                 if FileManager.default.fileExists(atPath: url.path) {
-                    DocumentState.shared.openFile(url: url)
-                    break
+                    WindowManager.shared.openFile(url: url)
+                    openedCLIFile = true
                 }
             }
+        }
+
+        // If no file opened from arguments, create initial window
+        if !openedCLIFile {
+            WindowManager.shared.createNewWindow()
         }
     }
 
     public func application(_ application: NSApplication, openFile filename: String) -> Bool {
         let url = URL(fileURLWithPath: filename)
         let effective = DragDropHelper.resolveEffectiveURL(for: url)
-        DocumentState.shared.openFile(url: effective)
-        mainWindowController?.window?.makeKeyAndOrderFront(nil)
-        NSApplication.shared.activate(ignoringOtherApps: true)
+        WindowManager.shared.openFile(url: effective)
         return true
     }
 
     public func application(_ application: NSApplication, open urls: [URL]) {
-        if let first = urls.first {
-            let effective = DragDropHelper.resolveEffectiveURL(for: first)
-            DocumentState.shared.openFile(url: effective)
-            mainWindowController?.window?.makeKeyAndOrderFront(nil)
-            NSApplication.shared.activate(ignoringOtherApps: true)
+        for (index, url) in urls.enumerated() {
+            let effective = DragDropHelper.resolveEffectiveURL(for: url)
+            WindowManager.shared.openFile(url: effective, inNewTab: index > 0)
         }
     }
 
     public func application(_ sender: NSApplication, openFiles filenames: [String]) {
-        for filename in filenames {
+        for (index, filename) in filenames.enumerated() {
             let url = URL(fileURLWithPath: filename)
             if DragDropHelper.isValidMarkdownFile(url: url) {
                 let effective = DragDropHelper.resolveEffectiveURL(for: url)
-                DocumentState.shared.openFile(url: effective)
-                mainWindowController?.window?.makeKeyAndOrderFront(nil)
-                NSApplication.shared.activate(ignoringOtherApps: true)
-                break
+                WindowManager.shared.openFile(url: effective, inNewTab: index > 0)
             }
         }
         sender.reply(toOpenOrPrint: .success)
@@ -95,22 +92,47 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         // 2. File Menu
         let fileMenuItem = NSMenuItem()
         let fileMenu = NSMenu(title: "File")
+
+        let newWindowItem = NSMenuItem(title: "New Window", action: #selector(newWindowAction), keyEquivalent: "n")
+        newWindowItem.target = self
+        fileMenu.addItem(newWindowItem)
+
+        let newTabItem = NSMenuItem(title: "New Tab", action: #selector(newTabAction), keyEquivalent: "t")
+        newTabItem.target = self
+        fileMenu.addItem(newTabItem)
+
+        fileMenu.addItem(.separator())
+
         let openItem = NSMenuItem(title: "Open...", action: #selector(MainWindowController.openDocumentAction), keyEquivalent: "o")
-        openItem.target = mainWindowController
+        openItem.target = nil // Responder chain: routes to active window controller
         fileMenu.addItem(openItem)
 
+        let openNewWinItem = NSMenuItem(title: "Open in New Window...", action: #selector(openInNewWindowAction), keyEquivalent: "o")
+        openNewWinItem.keyEquivalentModifierMask = [.command, .option]
+        openNewWinItem.target = self
+        fileMenu.addItem(openNewWinItem)
+
         let reloadItem = NSMenuItem(title: "Reload File", action: #selector(MainWindowController.reloadDocumentAction), keyEquivalent: "r")
-        reloadItem.target = mainWindowController
+        reloadItem.target = nil // Responder chain: routes to active window controller
         fileMenu.addItem(reloadItem)
 
         fileMenu.addItem(.separator())
 
         let exportPDFItem = NSMenuItem(title: "Save as PDF...", action: #selector(MainWindowController.exportPDFAction), keyEquivalent: "p")
-        exportPDFItem.target = mainWindowController
+        exportPDFItem.target = nil
         fileMenu.addItem(exportPDFItem)
 
         fileMenu.addItem(.separator())
-        fileMenu.addItem(NSMenuItem(title: "Close Window", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w"))
+
+        let closeItem = NSMenuItem(title: "Close Window / Tab", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        closeItem.target = nil
+        fileMenu.addItem(closeItem)
+
+        let closeAllItem = NSMenuItem(title: "Close All Windows", action: #selector(closeAllWindowsAction), keyEquivalent: "w")
+        closeAllItem.keyEquivalentModifierMask = [.command, .option]
+        closeAllItem.target = self
+        fileMenu.addItem(closeAllItem)
+
         fileMenuItem.submenu = fileMenu
         mainMenu.addItem(fileMenuItem)
 
@@ -125,11 +147,11 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let copyHTMLItem = NSMenuItem(title: "Copy Rendered HTML", action: #selector(MainWindowController.copyHTMLAction), keyEquivalent: "C")
         copyHTMLItem.keyEquivalentModifierMask = [.command, .shift]
-        copyHTMLItem.target = mainWindowController
+        copyHTMLItem.target = nil
         editMenu.addItem(copyHTMLItem)
 
         let copyMDItem = NSMenuItem(title: "Copy Markdown Source", action: #selector(MainWindowController.copyMarkdownAction), keyEquivalent: "")
-        copyMDItem.target = mainWindowController
+        copyMDItem.target = nil
         editMenu.addItem(copyMDItem)
 
         editMenu.addItem(NSMenuItem(title: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v"))
@@ -137,7 +159,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         editMenu.addItem(.separator())
 
         let findItem = NSMenuItem(title: "Find...", action: #selector(MainWindowController.toggleSearchAction), keyEquivalent: "f")
-        findItem.target = mainWindowController
+        findItem.target = nil
         editMenu.addItem(findItem)
 
         editMenuItem.submenu = editMenu
@@ -158,6 +180,13 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         zoomOutItem.target = self
         viewMenu.addItem(zoomOutItem)
 
+        viewMenu.addItem(.separator())
+
+        let toggleTabBarItem = NSMenuItem(title: "Toggle Tab Bar", action: #selector(NSWindow.toggleTabBar(_:)), keyEquivalent: "T")
+        toggleTabBarItem.keyEquivalentModifierMask = [.command, .shift]
+        toggleTabBarItem.target = nil
+        viewMenu.addItem(toggleTabBarItem)
+
         viewMenuItem.submenu = viewMenu
         mainMenu.addItem(viewMenuItem)
 
@@ -167,6 +196,26 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         windowMenu.addItem(NSMenuItem(title: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m"))
         windowMenu.addItem(NSMenuItem(title: "Zoom", action: #selector(NSWindow.performZoom(_:)), keyEquivalent: ""))
         windowMenu.addItem(.separator())
+
+        let prevTabItem = NSMenuItem(title: "Show Previous Tab", action: #selector(NSWindow.selectPreviousTab(_:)), keyEquivalent: "[")
+        prevTabItem.keyEquivalentModifierMask = [.command, .shift]
+        prevTabItem.target = nil
+        windowMenu.addItem(prevTabItem)
+
+        let nextTabItem = NSMenuItem(title: "Show Next Tab", action: #selector(NSWindow.selectNextTab(_:)), keyEquivalent: "]")
+        nextTabItem.keyEquivalentModifierMask = [.command, .shift]
+        nextTabItem.target = nil
+        windowMenu.addItem(nextTabItem)
+
+        let moveTabItem = NSMenuItem(title: "Move Tab to New Window", action: #selector(NSWindow.moveTabToNewWindow(_:)), keyEquivalent: "")
+        moveTabItem.target = nil
+        windowMenu.addItem(moveTabItem)
+
+        let mergeWindowsItem = NSMenuItem(title: "Merge All Windows", action: #selector(NSWindow.mergeAllWindows(_:)), keyEquivalent: "")
+        mergeWindowsItem.target = nil
+        windowMenu.addItem(mergeWindowsItem)
+
+        windowMenu.addItem(.separator())
         windowMenu.addItem(NSMenuItem(title: "Bring All to Front", action: #selector(NSApplication.arrangeInFront(_:)), keyEquivalent: ""))
         windowMenuItem.submenu = windowMenu
         mainMenu.addItem(windowMenuItem)
@@ -174,15 +223,44 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApplication.shared.mainMenu = mainMenu
     }
 
+    @objc private func newWindowAction() {
+        WindowManager.shared.createNewWindow()
+    }
+
+    @objc private func newTabAction() {
+        WindowManager.shared.createNewWindow(asTab: true)
+    }
+
+    @objc private func openInNewWindowAction() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.text, .plainText]
+        panel.allowsOtherFileTypes = true
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+
+        if panel.runModal() == .OK {
+            for url in panel.urls {
+                WindowManager.shared.createNewWindow(opening: url, asTab: false)
+            }
+        }
+    }
+
+    @objc private func closeAllWindowsAction() {
+        for wc in WindowManager.shared.windowControllers {
+            wc.window?.performClose(nil)
+        }
+    }
+
     @objc private func resetZoomAction() {
-        DocumentState.shared.resetZoom()
+        WindowManager.shared.activeDocumentState?.resetZoom()
     }
 
     @objc private func zoomInAction() {
-        DocumentState.shared.zoomIn()
+        WindowManager.shared.activeDocumentState?.zoomIn()
     }
 
     @objc private func zoomOutAction() {
-        DocumentState.shared.zoomOut()
+        WindowManager.shared.activeDocumentState?.zoomOut()
     }
 }

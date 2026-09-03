@@ -19,15 +19,30 @@ public final class SidebarViewController: NSViewController, NSTableViewDataSourc
     private var readTimeLabel: NSTextField!
     private var modifiedLabel: NSTextField!
 
+    public let documentState: DocumentState
+
     private var allHeadings: [HeadingItem] = []
     private var filteredHeadings: [HeadingItem] = []
     private var filterQuery: String = ""
 
+    public init(documentState: DocumentState) {
+        self.documentState = documentState
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    public convenience init() {
+        self.init(documentState: DocumentState.shared)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
     public override func loadView() {
         let container = SidebarDropView(frame: NSRect(x: 0, y: 0, width: 250, height: 600))
         container.autoresizingMask = [.width, .height]
-        container.onFileDropped = { url in
-            DocumentState.shared.openFile(url: url)
+        container.onFileDropped = { [weak self] url in
+            self?.documentState.openFile(url: url)
         }
         self.view = container
     }
@@ -40,9 +55,8 @@ public final class SidebarViewController: NSViewController, NSTableViewDataSourc
         setupBindings()
 
         // Populate initial headings and statistics if document already loaded
-        let state = DocumentState.shared
-        if !state.headings.isEmpty {
-            self.allHeadings = state.headings
+        if !documentState.headings.isEmpty {
+            self.allHeadings = documentState.headings
             self.applyFilter()
         }
         self.updateStatsUI()
@@ -266,14 +280,12 @@ public final class SidebarViewController: NSViewController, NSTableViewDataSourc
     }
 
     private func setupBindings() {
-        let state = DocumentState.shared
-
-        state.onHeadingsUpdated = { [weak self] headings in
+        documentState.onHeadingsUpdated = { [weak self] headings in
             self?.allHeadings = headings
             self?.applyFilter()
         }
 
-        state.onStatsUpdated = { [weak self] in
+        documentState.onStatsUpdated = { [weak self] in
             self?.updateStatsUI()
         }
     }
@@ -296,14 +308,12 @@ public final class SidebarViewController: NSViewController, NSTableViewDataSourc
     }
 
     private func updateStatsUI() {
-        let state = DocumentState.shared
-
-        syncStatusDot.layer?.backgroundColor = state.isWatching ? NSColor.systemGreen.cgColor : NSColor.secondaryLabelColor.cgColor
-        syncStatusLabel.stringValue = state.isWatching ? "Live Sync Active" : "Static View"
-        fileSizeLabel.stringValue = state.formattedFileSize
-        wordsLabel.stringValue = "\(state.wordCount) words"
-        readTimeLabel.stringValue = "~\(state.readingTimeMinutes) min"
-        modifiedLabel.stringValue = state.formattedLastModified.isEmpty ? "" : "Modified: \(state.formattedLastModified)"
+        syncStatusDot.layer?.backgroundColor = documentState.isWatching ? NSColor.systemGreen.cgColor : NSColor.secondaryLabelColor.cgColor
+        syncStatusLabel.stringValue = documentState.isWatching ? "Live Sync Active" : "Static View"
+        fileSizeLabel.stringValue = documentState.formattedFileSize
+        wordsLabel.stringValue = "\(documentState.wordCount) words"
+        readTimeLabel.stringValue = "~\(documentState.readingTimeMinutes) min"
+        modifiedLabel.stringValue = documentState.formattedLastModified.isEmpty ? "" : "Modified: \(documentState.formattedLastModified)"
     }
 
     public func controlTextDidChange(_ obj: Notification) {
@@ -317,7 +327,7 @@ public final class SidebarViewController: NSViewController, NSTableViewDataSourc
         let row = tableView.clickedRow
         guard row >= 0, row < filteredHeadings.count else { return }
         let heading = filteredHeadings[row]
-        DocumentState.shared.scrollTo(headingId: heading.id)
+        documentState.scrollTo(headingId: heading.id)
     }
 
     // MARK: - NSTableViewDataSource & Delegate

@@ -11,14 +11,29 @@ public final class ContentViewController: NSViewController, WKNavigationDelegate
     private var nextSearchButton: NSButton!
     private var closeSearchButton: NSButton!
 
+    public let documentState: DocumentState
+
     private var isIndexLoaded = false
     private var pendingRender: (content: String, preserveScroll: Bool)?
+
+    public init(documentState: DocumentState) {
+        self.documentState = documentState
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    public convenience init() {
+        self.init(documentState: DocumentState.shared)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
 
     public override func loadView() {
         let container = DroppableContainerView(frame: NSRect(x: 0, y: 0, width: 640, height: 480))
         container.autoresizingMask = [.width, .height]
-        container.onFileDropped = { url in
-            DocumentState.shared.openFile(url: url)
+        container.onFileDropped = { [weak self] url in
+            self?.documentState.openFile(url: url)
         }
         self.view = container
     }
@@ -47,8 +62,8 @@ public final class ContentViewController: NSViewController, WKNavigationDelegate
         webView.navigationDelegate = self
         webView.setValue(false, forKey: "drawsBackground")
 
-        webView.onFileDropped = { url in
-            DocumentState.shared.openFile(url: url)
+        webView.onFileDropped = { [weak self] url in
+            self?.documentState.openFile(url: url)
         }
 
         view.addSubview(webView)
@@ -123,33 +138,31 @@ public final class ContentViewController: NSViewController, WKNavigationDelegate
     }
 
     private func setupBindings() {
-        let state = DocumentState.shared
-
-        state.onDocumentLoaded = { [weak self] content, preserveScroll in
+        documentState.onDocumentLoaded = { [weak self] content, preserveScroll in
             self?.renderMarkdown(content: content, preserveScroll: preserveScroll)
         }
 
-        state.onThemeUpdated = { [weak self] theme in
+        documentState.onThemeUpdated = { [weak self] theme in
             self?.applyTheme(theme)
         }
 
-        state.onFontUpdated = { [weak self] fontFamily, fontSize in
+        documentState.onFontUpdated = { [weak self] fontFamily, fontSize in
             self?.applyFont(fontFamily: fontFamily, fontSize: fontSize)
         }
 
-        state.onScrollToHeading = { [weak self] headingId in
+        documentState.onScrollToHeading = { [weak self] headingId in
             self?.scrollToHeading(headingId: headingId)
         }
 
-        state.onSearchRequested = { [weak self] query in
+        documentState.onSearchRequested = { [weak self] query in
             self?.executeSearch(query: query)
         }
 
-        state.onSearchNext = { [weak self] in
+        documentState.onSearchNext = { [weak self] in
             self?.nextSearch()
         }
 
-        state.onSearchPrev = { [weak self] in
+        documentState.onSearchPrev = { [weak self] in
             self?.prevSearch()
         }
     }
@@ -192,15 +205,14 @@ public final class ContentViewController: NSViewController, WKNavigationDelegate
 
     public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         isIndexLoaded = true
-        let state = DocumentState.shared
-        applyTheme(state.theme)
-        applyFont(fontFamily: state.fontFamily, fontSize: state.fontSize)
+        applyTheme(documentState.theme)
+        applyFont(fontFamily: documentState.fontFamily, fontSize: documentState.fontSize)
 
         if let pending = pendingRender {
             renderMarkdown(content: pending.content, preserveScroll: pending.preserveScroll)
             pendingRender = nil
-        } else if !state.rawContent.isEmpty {
-            renderMarkdown(content: state.rawContent, preserveScroll: false)
+        } else if !documentState.rawContent.isEmpty {
+            renderMarkdown(content: documentState.rawContent, preserveScroll: false)
         }
     }
 
@@ -295,7 +307,8 @@ public final class ContentViewController: NSViewController, WKNavigationDelegate
         webView.evaluateJavaScript("window.nextSearchMatch();") { [weak self] result, _ in
             let idx = result as? Int ?? -1
             Task { @MainActor in
-                self?.updateSearchUI(count: DocumentState.shared.searchMatchCount, index: idx)
+                guard let self = self else { return }
+                self.updateSearchUI(count: self.documentState.searchMatchCount, index: idx)
             }
         }
     }
@@ -309,7 +322,8 @@ public final class ContentViewController: NSViewController, WKNavigationDelegate
         webView.evaluateJavaScript("window.prevSearchMatch();") { [weak self] result, _ in
             let idx = result as? Int ?? -1
             Task { @MainActor in
-                self?.updateSearchUI(count: DocumentState.shared.searchMatchCount, index: idx)
+                guard let self = self else { return }
+                self.updateSearchUI(count: self.documentState.searchMatchCount, index: idx)
             }
         }
     }
@@ -322,7 +336,7 @@ public final class ContentViewController: NSViewController, WKNavigationDelegate
     }
 
     private func updateSearchUI(count: Int, index: Int) {
-        DocumentState.shared.updateSearchResults(count: count, index: index)
+        documentState.updateSearchResults(count: count, index: index)
         if count == 0 {
             searchCounterLabel.stringValue = searchField.stringValue.isEmpty ? "" : "0 found"
             prevSearchButton.isEnabled = false

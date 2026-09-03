@@ -2,7 +2,10 @@ import Foundation
 
 @MainActor
 public final class DocumentState {
-    public static let shared = DocumentState()
+    public static var shared: DocumentState {
+        WindowManager.shared.activeDocumentState ?? fallbackState
+    }
+    private static let fallbackState = DocumentState()
 
     // Current Document
     public var fileURL: URL?
@@ -12,15 +15,44 @@ public final class DocumentState {
     public var fileSize: Int64 = 0
     public var isWatching: Bool = false
 
-    // Appearance
-    public var theme: AppTheme = .system {
-        didSet { onThemeUpdated?(theme) }
+    // Appearance (persisted defaults across windows & tabs)
+    public var theme: AppTheme {
+        get {
+            if let saved = UserDefaults.standard.string(forKey: "MDViewerTheme"),
+               let t = AppTheme(rawValue: saved) {
+                return t
+            }
+            return .system
+        }
+        set {
+            UserDefaults.standard.set(newValue.rawValue, forKey: "MDViewerTheme")
+            onThemeUpdated?(newValue)
+        }
     }
-    public var fontFamily: AppFontFamily = .sans {
-        didSet { onFontUpdated?(fontFamily, fontSize) }
+
+    public var fontFamily: AppFontFamily {
+        get {
+            if let saved = UserDefaults.standard.string(forKey: "MDViewerFontFamily"),
+               let f = AppFontFamily(rawValue: saved) {
+                return f
+            }
+            return .sans
+        }
+        set {
+            UserDefaults.standard.set(newValue.rawValue, forKey: "MDViewerFontFamily")
+            onFontUpdated?(newValue, fontSize)
+        }
     }
-    public var fontSize: Double = 16.0 {
-        didSet { onFontUpdated?(fontFamily, fontSize) }
+
+    public var fontSize: Double {
+        get {
+            let saved = UserDefaults.standard.double(forKey: "MDViewerFontSize")
+            return saved > 0 ? saved : 16.0
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: "MDViewerFontSize")
+            onFontUpdated?(fontFamily, newValue)
+        }
     }
 
     // Outline & Stats
