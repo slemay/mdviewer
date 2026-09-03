@@ -38,9 +38,9 @@ if compgen -G "${BUILD_DIR}/*.bundle" > /dev/null; then
     cp -R "${BUILD_DIR}/"*.bundle "${RESOURCES_DIR}/"
 fi
 
-# 5. Ad-hoc codesign
-echo "==> Signing application bundle..."
-codesign --force --deep --sign - "${APP_DIR}"
+# 5. Codesign with entitlements
+echo "==> Signing application bundle with entitlements..."
+codesign --force --deep --sign - --entitlements "${ROOT_DIR}/MDViewer.entitlements" "${APP_DIR}"
 
 echo "==> Success! Application bundle created at: ${APP_DIR}"
 echo "    You can run it with: open \"${APP_DIR}\""

@@ -184,8 +184,8 @@ public final class ContentViewController: NSViewController, WKNavigationDelegate
             print("[MDViewer] Error: Could not find index.html")
             return
         }
-        // Grant read access so both bundle assets and user-dropped relative images can load
-        let readAccessURL = URL(fileURLWithPath: "/")
+        // Sandbox-compliant read access to bundle resources
+        let readAccessURL = Bundle.main.resourceURL ?? indexURL.deletingLastPathComponent()
         webView.loadFileURL(indexURL, allowingReadAccessTo: readAccessURL)
     }
 

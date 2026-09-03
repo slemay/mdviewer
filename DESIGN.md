@@ -376,7 +376,16 @@ let package = Package(
 ### 8.3 CLI Installer (`scripts/install_cli.sh`)
 Installs `mdviewer` into `~/.local/bin/mdviewer`. Calling `mdviewer document.md` converts the path to an absolute path and dispatches `open -a MDViewer.app <path>`.
 
----
+### 8.4 Mac App Store & Sandboxing Architecture
+- **Entitlements (`MDViewer.entitlements`):**
+  - `com.apple.security.app-sandbox`: Mandated for Mac App Store distribution.
+  - `com.apple.security.files.user-selected.read-write`: Grants sandboxed read-write access to documents opened via Open Panel, drag & drop, or Finder double-click, and export destinations.
+  - `com.apple.security.network.client`: Allows remote images and badges embedded in markdown documents to load via WebKit.
+  - `com.apple.security.print`: Authorizes PDF generation and print spooling.
+- **Settings & Preferences (`PreferencesWindowController.swift`):**
+  - Standard macOS Preferences window (`Cmd + ,`) supporting default theme, typography, font scale, live sync toggle, and terminal integration.
+- **About Window & Licensing (`AboutWindowController.swift`):**
+  - Standard AppKit About panel displaying app icon, version, build, and full open-source licensing acknowledgments (Marked.js, KaTeX, Prism.js, Mermaid.js under MIT license).
 
 ## 9. Future Roadmap & Extensibility
 

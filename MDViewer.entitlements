@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- App Sandboxing for Mac App Store -->
+    <key>com.apple.security.app-sandbox</key>
+    <true/>
+
+    <!-- User-Selected Files Read & Write (for opening documents and saving PDF/HTML exports) -->
+    <key>com.apple.security.files.user-selected.read-write</key>
+    <true/>
+
+    <!-- Outgoing Network Connections (to load remote images/badges in markdown) -->
+    <key>com.apple.security.network.client</key>
+    <true/>
+
+    <!-- Printing & PDF Generation -->
+    <key>com.apple.security.print</key>
+    <true/>
+</dict>
+</plist>

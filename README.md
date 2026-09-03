@@ -35,7 +35,8 @@ Designed to feel right at home on modern macOS with unified toolbars, full-heigh
 - **📄 Export & Share**: Direct export to PDF (`Cmd + P`), Copy Rendered HTML (`Cmd + Shift + C`), or copy raw Markdown.
 - **📐 Window State Persistence**: Automatically remembers window dimensions, screen coordinates, and sidebar split width across launches using native AppKit frame autosave.
 - **🎨 Native macOS App Icon**: Bundled with a custom high-resolution Apple icon (`AppIcon.icns`) supporting 16×16 through 1024×1024 @2x Retina.
-- **📦 100% Offline**: Zero external network dependencies. All fonts, styles, and parsers are bundled inside the app.
+- **📦 100% Offline & Privacy First**: Zero tracking, zero telemetry. All fonts, styles, and parsers are bundled inside the app.
+- **🛡 Mac App Store & Sandbox Ready**: Built with official Mac App Store entitlements (`com.apple.security.app-sandbox`), native Settings window (`Cmd + ,`), About window with full open-source licensing acknowledgments, and 1-click CLI installer.
 
 ---
 
@@ -102,6 +103,7 @@ Or simply drag & drop any `.md` file onto `MDViewer.app` or its running window!
 mdviewer/
 ├── Package.swift                    # Swift Package Manager manifest (macOS 14+)
 ├── Info.plist                       # macOS bundle metadata, document types & icon config
+├── MDViewer.entitlements            # Mac App Store sandbox & security entitlements
 ├── scripts/
 │   ├── build_app.sh                 # Compiles & packages build/MDViewer.app
 │   └── install_cli.sh               # Installs ~/.local/bin/mdviewer CLI launcher
@@ -111,7 +113,9 @@ mdviewer/
 │       │   ├── main.swift           # Native AppKit entrypoint
 │       │   └── AppDelegate.swift    # AppKit lifecycle, macOS menus, Dock/Finder drop
 │       ├── Controllers/
-│       │   └── MainWindowController.swift # NSWindowController, NSSplitViewController, NSToolbar, Native Tabbing
+│       │   ├── MainWindowController.swift     # NSWindowController, NSSplitViewController, NSToolbar, Tabs
+│       │   ├── PreferencesWindowController.swift # Settings window (Theme, Font, Scale, Live Sync, CLI)
+│       │   └── AboutWindowController.swift       # About window with MIT Open-Source Acknowledgments
 │       ├── Models/
 │       │   ├── DocumentState.swift  # Isolated document model per window/tab & listener callbacks
 │       │   ├── HeadingItem.swift    # TOC outline item model

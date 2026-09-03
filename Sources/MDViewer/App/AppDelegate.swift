@@ -79,7 +79,20 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         // 1. App Menu
         let appMenuItem = NSMenuItem()
         let appMenu = NSMenu()
-        appMenu.addItem(NSMenuItem(title: "About MDViewer", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: ""))
+        let aboutItem = NSMenuItem(title: "About MDViewer", action: #selector(showAboutAction), keyEquivalent: "")
+        aboutItem.target = self
+        appMenu.addItem(aboutItem)
+
+        appMenu.addItem(.separator())
+
+        let settingsItem = NSMenuItem(title: "Settings...", action: #selector(showPreferencesAction), keyEquivalent: ",")
+        settingsItem.target = self
+        appMenu.addItem(settingsItem)
+
+        let cliItem = NSMenuItem(title: "Install Command Line Tool...", action: #selector(installCLIAction), keyEquivalent: "")
+        cliItem.target = self
+        appMenu.addItem(cliItem)
+
         appMenu.addItem(.separator())
         appMenu.addItem(NSMenuItem(title: "Hide MDViewer", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h"))
         let hideOthers = NSMenuItem(title: "Hide Others", action: #selector(NSApplication.hideOtherApplications(_:)), keyEquivalent: "h")
@@ -222,7 +235,40 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         windowMenuItem.submenu = windowMenu
         mainMenu.addItem(windowMenuItem)
 
+        // Help Menu
+        let helpMenuItem = NSMenuItem(title: "Help", action: nil, keyEquivalent: "")
+        let helpMenu = NSMenu(title: "Help")
+        let helpItem = NSMenuItem(title: "MDViewer Help & Documentation", action: #selector(openHelpAction), keyEquivalent: "?")
+        helpItem.target = self
+        helpMenu.addItem(helpItem)
+        helpMenuItem.submenu = helpMenu
+        mainMenu.addItem(helpMenuItem)
+
         NSApplication.shared.mainMenu = mainMenu
+    }
+
+    @objc private func showAboutAction() {
+        AboutWindowController.shared.showWindow(nil)
+        AboutWindowController.shared.window?.makeKeyAndOrderFront(nil)
+        NSApplication.shared.activate(ignoringOtherApps: true)
+    }
+
+    @objc private func showPreferencesAction() {
+        PreferencesWindowController.shared.showWindow(nil)
+        PreferencesWindowController.shared.window?.makeKeyAndOrderFront(nil)
+        NSApplication.shared.activate(ignoringOtherApps: true)
+    }
+
+    @objc private func installCLIAction() {
+        PreferencesWindowController.shared.showWindow(nil)
+        PreferencesWindowController.shared.window?.makeKeyAndOrderFront(nil)
+        NSApplication.shared.activate(ignoringOtherApps: true)
+    }
+
+    @objc private func openHelpAction() {
+        if let url = URL(string: "https://github.com/slemay/mdviewer#readme") {
+            NSWorkspace.shared.open(url)
+        }
     }
 
     @objc private func newWindowAction() {

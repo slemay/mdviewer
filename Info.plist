@@ -30,6 +30,10 @@
     <true/>
     <key>LSMultipleInstancesProhibited</key>
     <true/>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.developer-tools</string>
+    <key>ITSAppUsesNonExemptEncryption</key>
+    <false/>
     <key>CFBundleDocumentTypes</key>
     <array>
         <dict>
