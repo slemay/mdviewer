@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en" class="theme-system">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MDViewer</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="vendor/katex.min.css">
+  <link id="highlight-light" rel="stylesheet" href="vendor/highlight-github.min.css">
+  <link id="highlight-dark" rel="stylesheet" href="vendor/highlight-github-dark.min.css" disabled>
+</head>
+<body>
+  <div id="content-container">
+    <div class="empty-state">
+      <div class="empty-state-icon">📄</div>
+      <h2>No Document Open</h2>
+      <p>Open a markdown file (Cmd+O) or drag one into this window to start viewing.</p>
+    </div>
+  </div>
+
+  <!-- Offline Bundled Scripts -->
+  <script src="vendor/marked.min.js"></script>
+  <script src="vendor/highlight.min.js"></script>
+  <script src="vendor/katex.min.js"></script>
+  <script src="vendor/auto-render.min.js"></script>
+  <script src="vendor/mermaid.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
