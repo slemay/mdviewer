@@ -28,6 +28,8 @@
     <string>NSApplication</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>LSMultipleInstancesProhibited</key>
+    <true/>
     <key>CFBundleDocumentTypes</key>
     <array>
         <dict>

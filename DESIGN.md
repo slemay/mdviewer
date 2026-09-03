@@ -136,7 +136,7 @@ graph TD
       - Prominent active color indicator bar (`2.5pt` height in `controlAccentColor`) across the top edge.
       - Document icon (`doc.text.fill` for active, `doc.text` for inactive), title with file path tooltip, and interactive close (`✕`) button.
       - Inactive tabs rendered with subtle hover states and vertical divider lines.
-    - Integrated `(+)` Plus Button in the tab bar and toolbar header to open or create new markdown documents at all times.
+    - Integrated `(+)` Plus Button directly on the tab bar to open or create new markdown documents at all times.
     - Drag & drop support directly on the tab bar to open dropped files as new tabs.
 - **Split View Layout:**
   - Implemented using AppKit’s `NSSplitViewController`.

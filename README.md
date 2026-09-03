@@ -12,7 +12,7 @@ Designed to feel right at home on modern macOS with unified toolbars, full-heigh
 - **🗂 Prominent Document Tab Bar & Multi-Window Support**:
   - Always-visible, dedicated tab bar displaying tabs even on a single open document or untitled state.
   - Tactile, modern elevated card tabs with active color indicator strip, rounded top corners, document icons, and interactive close (`✕`) buttons.
-  - Quick `(+)` action in both the toolbar header and tab bar to open new markdown documents at all times.
+  - Quick `(+)` action directly on the tab bar to open new markdown documents at all times.
   - Open documents in tabs (`Cmd + T`) or independent windows (`Cmd + N`).
   - Cycle through tabs using standard macOS shortcuts (`Cmd + Shift + [` / `Cmd + Shift + ]`).
   - Independent `DocumentState`, kernel file watchers, search states, and scroll positions per tab/window.

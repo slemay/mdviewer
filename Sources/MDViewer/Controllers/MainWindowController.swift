@@ -235,7 +235,6 @@ public final class MainWindowController: NSWindowController, NSToolbarDelegate, 
 
     // MARK: - NSToolbarDelegate
     private let toggleSidebarId = NSToolbarItem.Identifier("ToggleSidebar")
-    private let newTabId = NSToolbarItem.Identifier("NewTab")
     private let openFileId = NSToolbarItem.Identifier("OpenFile")
     private let reloadFileId = NSToolbarItem.Identifier("ReloadFile")
     private let typographyId = NSToolbarItem.Identifier("Typography")
@@ -247,7 +246,6 @@ public final class MainWindowController: NSWindowController, NSToolbarDelegate, 
     public func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         return [
             .toggleSidebar,
-            newTabId,
             openFileId,
             reloadFileId,
             .flexibleSpace,
@@ -262,7 +260,6 @@ public final class MainWindowController: NSWindowController, NSToolbarDelegate, 
     public func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         return [
             .toggleSidebar,
-            newTabId,
             openFileId,
             reloadFileId,
             .flexibleSpace,
@@ -278,17 +275,6 @@ public final class MainWindowController: NSWindowController, NSToolbarDelegate, 
         switch itemIdentifier {
         case .toggleSidebar:
             return nil
-
-        case newTabId:
-            let item = NSToolbarItem(itemIdentifier: itemIdentifier)
-            item.label = "New Tab"
-            item.paletteLabel = "New Tab / Open File"
-            item.toolTip = "Open Markdown Document in New Tab (Cmd+T)"
-            let plusImg = NSImage(systemSymbolName: "plus", accessibilityDescription: "New Tab")
-            item.image = plusImg
-            item.target = self
-            item.action = #selector(newDocumentTabAction)
-            return item
 
         case openFileId:
             let item = NSToolbarItem(itemIdentifier: itemIdentifier)

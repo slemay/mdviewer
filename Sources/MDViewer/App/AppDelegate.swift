@@ -23,7 +23,6 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         setupMainMenu()
 
         // Check CLI argument paths
-        var openedCLIFile = false
         let args = CommandLine.arguments.dropFirst()
         for arg in args {
             if !arg.hasPrefix("-") {
@@ -31,15 +30,18 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
                 let url = URL(fileURLWithPath: expanded)
                 if FileManager.default.fileExists(atPath: url.path) {
                     WindowManager.shared.openFile(url: url)
-                    openedCLIFile = true
                 }
             }
         }
 
-        // If no file opened from arguments, create initial window
-        if !openedCLIFile {
+        // Only create an initial window if no window was created yet (e.g. launched without files from Spotlight or Finder)
+        if WindowManager.shared.windowControllers.isEmpty {
             WindowManager.shared.createNewWindow()
         }
+    }
+
+    public func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {
+        return false
     }
 
     public func application(_ application: NSApplication, openFile filename: String) -> Bool {
