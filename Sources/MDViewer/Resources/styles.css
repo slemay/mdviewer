@@ -514,3 +514,18 @@ mark.search-match.current {
   margin-top: 0;
   color: var(--text-color);
 }
+
+/* Heading Target Flash / Pulse on TOC Navigation */
+@keyframes headingTargetGlow {
+  0% {
+    background-color: rgba(9, 105, 218, 0.22);
+    border-radius: 4px;
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.heading-target-pulse {
+  animation: headingTargetGlow 1.4s ease-out;
+}

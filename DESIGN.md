@@ -14,7 +14,7 @@
 3. [System Architecture Overview](#3-system-architecture-overview)
 4. [Component Deep Dive](#4-component-deep-dive)
    - 4.1 [Application Lifecycle & Menu System](#41-application-lifecycle--menu-system)
-   - 4.2 [Window Controller & Layout Hierarchy (Traffic Light Clearance)](#42-window-controller--layout-hierarchy-traffic-light-clearance)
+   - 4.2 [Window Controller, Document Tab Bar & Layout Hierarchy](#42-window-controller-document-tab-bar--layout-hierarchy)
    - 4.3 [Document State & Concurrency Model](#43-document-state--concurrency-model)
    - 4.4 [Kernel File Watcher & Atomic Save Recovery](#44-kernel-file-watcher--atomic-save-recovery)
    - 4.5 [Offline WebKit Rendering Pipeline](#45-offline-webkit-rendering-pipeline)

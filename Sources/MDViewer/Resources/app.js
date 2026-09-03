@@ -20,6 +20,7 @@
     return text
       .toLowerCase()
       .trim()
+      .replace(/<[^>]+>/g, '')
       .replace(/[^\w\s-]/g, '')
       .replace(/[\s_-]+/g, '-')
       .replace(/^-+|-+$/g, '');
@@ -27,13 +28,20 @@
 
   // Custom Marked Renderer
   const renderer = new marked.Renderer();
+  let headingCounts = {};
 
-  // Headings with stable IDs
+  // Headings with stable IDs & duplicate count support
   renderer.heading = function (text, level) {
-    // If text is an object in newer marked versions
     const headingText = typeof text === 'object' ? text.text : text;
     const headingLevel = typeof text === 'object' ? text.depth : level;
-    const id = slugify(headingText);
+    const baseSlug = slugify(headingText);
+    let id = baseSlug;
+    if (headingCounts[baseSlug] !== undefined) {
+      headingCounts[baseSlug]++;
+      id = `${baseSlug}-${headingCounts[baseSlug]}`;
+    } else {
+      headingCounts[baseSlug] = 0;
+    }
     return `<h${headingLevel} id="${id}">${headingText}</h${headingLevel}>`;
   };
 
@@ -176,6 +184,7 @@
 
   // Main Render Function called from Swift
   window.renderMarkdown = function (rawMarkdown, preserveScroll) {
+    headingCounts = {};
     const container = document.getElementById('content-container');
     if (!container) return;
 
@@ -282,12 +291,99 @@
     }
   };
 
-  // Scroll to Heading (from TOC sidebar)
+  // Smart Heading Element Resolver
+  // Resolves IDs whether they are exact, URL-encoded, single/double hyphenated (GFM),
+  // matched by text slug, or matched by section prefix.
+  window.findHeadingElement = function (targetId) {
+    if (!targetId) return null;
+    let decoded = targetId;
+    try {
+      decoded = decodeURIComponent(targetId).trim();
+    } catch (e) {
+      decoded = targetId.trim();
+    }
+
+    // 1. Direct ID match
+    let el = document.getElementById(decoded) || document.getElementById(targetId);
+    if (el) return el;
+
+    // 2. Anchor name match
+    try {
+      el = document.querySelector(`a[name="${CSS.escape(decoded)}"]`) ||
+           document.querySelector(`a[name="${CSS.escape(targetId)}"]`);
+      if (el) return el;
+    } catch (e) {}
+
+    const allHeadings = Array.from(document.querySelectorAll('h1, h2, h3, h4, h5, h6'));
+    const normTarget = decoded.toLowerCase().replace(/^-+|-+$/g, '');
+    const cleanTarget = normTarget.replace(/-+/g, '-');
+    const noHyphenTarget = normTarget.replace(/-/g, '');
+
+    // 3. Normalized ID match (single hyphen vs double hyphen)
+    for (const h of allHeadings) {
+      const hNorm = (h.id || '').toLowerCase().replace(/^-+|-+$/g, '');
+      if (!hNorm) continue;
+      if (hNorm === normTarget || hNorm.replace(/-+/g, '-') === cleanTarget) {
+        return h;
+      }
+    }
+
+    // 4. Match by slugifying heading text content
+    for (const h of allHeadings) {
+      const textSlug = slugify(h.textContent);
+      if (textSlug === cleanTarget || textSlug.replace(/-/g, '') === noHyphenTarget) {
+        return h;
+      }
+    }
+
+    // 5. Match by section number (e.g. "4-2", "42", "410", "4.2")
+    let major = null, minor = null;
+    const numDash = cleanTarget.match(/^(\d+)-(\d+)/);
+    if (numDash) {
+      major = numDash[1];
+      minor = numDash[2];
+    } else {
+      const numSeq = cleanTarget.match(/^(\d)(\d+)/);
+      if (numSeq) {
+        major = numSeq[1];
+        minor = numSeq[2];
+      } else {
+        const singleNum = cleanTarget.match(/^(\d+)/);
+        if (singleNum) major = singleNum[1];
+      }
+    }
+
+    if (major) {
+      for (const h of allHeadings) {
+        const text = h.textContent.trim();
+        if (minor && (text.startsWith(major + '.' + minor) || text.startsWith(major + '-' + minor))) {
+          return h;
+        } else if (!minor && (text.startsWith(major + '.') || text.startsWith(major + ' '))) {
+          return h;
+        }
+      }
+    }
+
+    // 6. Fuzzy substring match on heading text slug
+    for (const h of allHeadings) {
+      const textSlug = slugify(h.textContent);
+      if (textSlug.includes(cleanTarget) || cleanTarget.includes(textSlug)) {
+        return h;
+      }
+    }
+
+    return null;
+  };
+
+  // Scroll to Heading (from in-page TOC link or Outline sidebar)
   window.scrollToHeading = function (headingId) {
     if (!headingId) return;
-    const target = document.getElementById(headingId);
+    const target = window.findHeadingElement(headingId);
     if (target) {
       target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      target.classList.remove('heading-target-pulse');
+      void target.offsetWidth; // trigger reflow
+      target.classList.add('heading-target-pulse');
     }
   };
 
