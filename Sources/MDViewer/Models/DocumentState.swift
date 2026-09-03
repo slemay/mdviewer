@@ -36,6 +36,7 @@ public final class DocumentState {
 
     // Callbacks
     public var onDocumentLoaded: ((_ content: String, _ preserveScroll: Bool) -> Void)?
+    public var onMetadataChanged: ((_ fileName: String, _ fileURL: URL?) -> Void)?
     public var onHeadingsUpdated: (([HeadingItem]) -> Void)?
     public var onStatsUpdated: (() -> Void)?
     public var onThemeUpdated: ((AppTheme) -> Void)?
@@ -71,6 +72,7 @@ public final class DocumentState {
 
         self.fileURL = url
         self.fileName = url.lastPathComponent
+        onMetadataChanged?(self.fileName, self.fileURL)
 
         reloadCurrentFile(preserveScroll: false)
         startWatching(url: url)
@@ -98,6 +100,7 @@ public final class DocumentState {
             self.charCount = stats.charCount
             self.readingTimeMinutes = stats.readingTimeMinutes
 
+            onMetadataChanged?(self.fileName, self.fileURL)
             onHeadingsUpdated?(self.headings)
             onStatsUpdated?()
             onDocumentLoaded?(content, preserveScroll)

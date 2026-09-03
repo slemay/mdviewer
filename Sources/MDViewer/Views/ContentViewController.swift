@@ -156,10 +156,11 @@ public final class ContentViewController: NSViewController, WKNavigationDelegate
 
     private func loadIndexHTML() {
         guard let indexURL = resolveIndexHTMLURL() else {
-            print("Error: Could not find index.html")
+            print("[MDViewer] Error: Could not find index.html")
             return
         }
-        let readAccessURL = indexURL.deletingLastPathComponent().deletingLastPathComponent()
+        // Grant read access so both bundle assets and user-dropped relative images can load
+        let readAccessURL = URL(fileURLWithPath: "/")
         webView.loadFileURL(indexURL, allowingReadAccessTo: readAccessURL)
     }
 
@@ -203,6 +204,14 @@ public final class ContentViewController: NSViewController, WKNavigationDelegate
         }
     }
 
+    public func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        print("[MDViewer] webView didFail navigation: \(error.localizedDescription)")
+    }
+
+    public func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        print("[MDViewer] webView didFailProvisionalNavigation: \(error.localizedDescription)")
+    }
+
     public func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         if message.name == "openExternalURL", let urlStr = message.body as? String, let url = URL(string: urlStr) {
             NSWorkspace.shared.open(url)
@@ -221,7 +230,11 @@ public final class ContentViewController: NSViewController, WKNavigationDelegate
         }
 
         let js = "window.renderMarkdown(\(jsonString)[0], \(jsonString)[1]);"
-        webView.evaluateJavaScript(js, completionHandler: nil)
+        webView.evaluateJavaScript(js) { result, error in
+            if let error = error {
+                print("[MDViewer] evaluateJavaScript error in renderMarkdown: \(error.localizedDescription)")
+            }
+        }
     }
 
     private func applyTheme(_ theme: AppTheme) {
@@ -236,7 +249,11 @@ public final class ContentViewController: NSViewController, WKNavigationDelegate
 
     private func scrollToHeading(headingId: String) {
         guard isIndexLoaded else { return }
-        webView.evaluateJavaScript("window.scrollToHeading('\(headingId)');", completionHandler: nil)
+        webView.evaluateJavaScript("window.scrollToHeading('\(headingId)');") { result, error in
+            if let error = error {
+                print("[MDViewer] evaluateJavaScript error in scrollToHeading: \(error.localizedDescription)")
+            }
+        }
     }
 
     public func toggleSearch() {

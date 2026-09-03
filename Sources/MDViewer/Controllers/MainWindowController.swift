@@ -61,11 +61,11 @@ public final class MainWindowController: NSWindowController, NSToolbarDelegate {
     private func setupStateObservers() {
         let state = DocumentState.shared
 
-        state.onDocumentLoaded = { [weak self] _, _ in
+        state.onMetadataChanged = { [weak self] fileName, fileURL in
             guard let self = self, let win = self.window else { return }
-            win.title = state.fileName
-            win.representedURL = state.fileURL
-            if let path = state.fileURL?.path {
+            win.title = fileName
+            win.representedURL = fileURL
+            if let path = fileURL?.path {
                 win.subtitle = path
             }
         }
