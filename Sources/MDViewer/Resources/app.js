@@ -381,4 +381,14 @@
     }
   });
 
+  // Prevent WebKit from navigating to dropped file URLs
+  window.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  });
+
+  window.addEventListener('drop', (e) => {
+    e.preventDefault();
+  });
+
 })();

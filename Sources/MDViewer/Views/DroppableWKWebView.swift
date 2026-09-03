@@ -15,30 +15,25 @@ public final class DroppableWKWebView: WKWebView {
     }
 
     public override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        if getMarkdownFileURL(from: sender.draggingPasteboard) != nil {
+        if DragDropHelper.extractMarkdownURL(from: sender.draggingPasteboard) != nil {
+            return .copy
+        }
+        return []
+    }
+
+    public override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        if DragDropHelper.extractMarkdownURL(from: sender.draggingPasteboard) != nil {
             return .copy
         }
         return []
     }
 
     public override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
-        guard let url = getMarkdownFileURL(from: sender.draggingPasteboard) else {
+        guard let url = DragDropHelper.extractMarkdownURL(from: sender.draggingPasteboard) else {
             return false
         }
-        onFileDropped?(url)
+        let effective = DragDropHelper.resolveEffectiveURL(for: url)
+        onFileDropped?(effective)
         return true
-    }
-
-    private func getMarkdownFileURL(from pasteboard: NSPasteboard) -> URL? {
-        guard let items = pasteboard.pasteboardItems else { return nil }
-        for item in items {
-            if let string = item.string(forType: .fileURL), let url = URL(string: string) {
-                let ext = url.pathExtension.lowercased()
-                if ["md", "markdown", "mdown", "txt", ""].contains(ext) {
-                    return url
-                }
-            }
-        }
-        return nil
     }
 }

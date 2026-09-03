@@ -24,8 +24,12 @@ public final class SidebarViewController: NSViewController, NSTableViewDataSourc
     private var filterQuery: String = ""
 
     public override func loadView() {
-        self.view = NSView(frame: NSRect(x: 0, y: 0, width: 250, height: 600))
-        self.view.autoresizingMask = [.width, .height]
+        let container = DroppableContainerView(frame: NSRect(x: 0, y: 0, width: 250, height: 600))
+        container.autoresizingMask = [.width, .height]
+        container.onFileDropped = { url in
+            DocumentState.shared.openFile(url: url)
+        }
+        self.view = container
     }
 
     public override func viewDidLoad() {

@@ -40,16 +40,34 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
 
     public func application(_ application: NSApplication, openFile filename: String) -> Bool {
         let url = URL(fileURLWithPath: filename)
-        DocumentState.shared.openFile(url: url)
+        let effective = DragDropHelper.resolveEffectiveURL(for: url)
+        DocumentState.shared.openFile(url: effective)
         mainWindowController?.window?.makeKeyAndOrderFront(nil)
+        NSApplication.shared.activate(ignoringOtherApps: true)
         return true
     }
 
     public func application(_ application: NSApplication, open urls: [URL]) {
         if let first = urls.first {
-            DocumentState.shared.openFile(url: first)
+            let effective = DragDropHelper.resolveEffectiveURL(for: first)
+            DocumentState.shared.openFile(url: effective)
             mainWindowController?.window?.makeKeyAndOrderFront(nil)
+            NSApplication.shared.activate(ignoringOtherApps: true)
         }
+    }
+
+    public func application(_ sender: NSApplication, openFiles filenames: [String]) {
+        for filename in filenames {
+            let url = URL(fileURLWithPath: filename)
+            if DragDropHelper.isValidMarkdownFile(url: url) {
+                let effective = DragDropHelper.resolveEffectiveURL(for: url)
+                DocumentState.shared.openFile(url: effective)
+                mainWindowController?.window?.makeKeyAndOrderFront(nil)
+                NSApplication.shared.activate(ignoringOtherApps: true)
+                break
+            }
+        }
+        sender.reply(toOpenOrPrint: .success)
     }
 
     public func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
